@@ -4,15 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NutriTrack Fun</title>
+    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="manifest" href="manifest.json">
     <style>
+        /* Import a clean, modern font */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6;
         }
+        /* Styling for the modal and message box UI */
         .message-box, .modal {
             position: fixed;
             top: 50%;
@@ -35,6 +38,7 @@
             background-color: rgba(0, 0, 0, 0.5);
             z-index: 999;
         }
+        /* Custom primary button with gradient and hover effect */
         .btn-primary {
             background-image: linear-gradient(to right, #6EE7B7, #34D399, #10B981);
             color: white;
@@ -46,6 +50,7 @@
             transform: translateY(-2px);
             box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
         }
+        /* CSS for the circular progress bars */
         .progress-circle {
             transform: rotate(-90deg);
         }
@@ -55,41 +60,53 @@
         .progress-circle-fg {
             transition: stroke-dashoffset 0.5s ease-in-out;
         }
-        .calendar-cell.achieved-100 { background-color: #10B981; }
-        .calendar-cell.achieved-90 { background-color: #A3E635; }
-        .calendar-cell.achieved-70 { background-color: #FACC15; }
-        .calendar-cell.achieved-50 { background-color: #F87171; }
-        .calendar-cell.achieved-25 { background-color: #EF4444; }
+        /* Calendar cell styling based on nutrition progress */
+        .calendar-cell.achieved-100 { background-color: #10B981; color: white; }
+        .calendar-cell.achieved-90 { background-color: #A3E635; color: black; }
+        .calendar-cell.achieved-70 { background-color: #FACC15; color: black; }
+        .calendar-cell.achieved-50 { background-color: #F87171; color: white; }
+        .calendar-cell.achieved-25 { background-color: #EF4444; color: white; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
-    <!-- PWA Service Worker Registration & Firebase Setup -->
+    <!-- Firebase SDK Imports -->
     <script type="module">
-        // Firebase SDK imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global app ID for Firestore
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         // DOM Elements
         const credentialsPage = document.getElementById('credentials-page');
+        const loginPage = document.getElementById('login-page');
+        const registerPage = document.getElementById('register-page');
         const homePage = document.getElementById('home-page');
         const mainContent = document.getElementById('main-content');
+        
+        // Credentials page elements
         const nutritionixIdInput = document.getElementById('nutritionix-id-input');
         const nutritionixKeyInput = document.getElementById('nutritionix-key-input');
-        
-        // New Firebase config input fields
         const fbApiKeyInput = document.getElementById('fb-api-key-input');
         const fbAuthDomainInput = document.getElementById('fb-auth-domain-input');
         const fbProjectIdInput = document.getElementById('fb-project-id-input');
         const fbStorageBucketInput = document.getElementById('fb-storage-bucket-input');
         const fbMessagingSenderIdInput = document.getElementById('fb-messaging-sender-id-input');
         const fbAppIdInput = document.getElementById('fb-app-id-input');
-        
         const saveCredentialsBtn = document.getElementById('save-credentials-btn');
+
+        // Login & Register page elements
+        const loginEmailInput = document.getElementById('login-email-input');
+        const loginPasswordInput = document.getElementById('login-password-input');
+        const loginBtn = document.getElementById('login-btn');
+        const goToRegisterBtn = document.getElementById('go-to-register-btn');
+        const registerEmailInput = document.getElementById('register-email-input');
+        const registerPasswordInput = document.getElementById('register-password-input');
+        const registerBtn = document.getElementById('register-btn');
+        const goToLoginBtn = document.getElementById('go-to-login-btn');
+        
+        // Home page elements
         const foodQueryInput = document.getElementById('food-query-input');
         const searchBtn = document.getElementById('search-btn');
         const resultsContainer = document.getElementById('results-container');
@@ -109,14 +126,18 @@
         const modal = document.getElementById('modal');
         const modalContent = document.getElementById('modal-content');
         const closeModalBtn = document.getElementById('close-modal-btn');
+        const userNameDisplay = document.getElementById('user-name-display');
+        const logoutBtn = document.getElementById('logout-btn');
+        const dailyTargetsToggle = document.getElementById('daily-targets-toggle');
+        const dailyTargetsContent = document.getElementById('daily-targets-content');
         
         let db, auth, userId;
         let currentFoodItem = null;
         let currentMonth = new Date();
 
-        // Helper Functions
+        // Helper Functions for UI
         const showView = (view) => {
-            const views = [credentialsPage, homePage];
+            const views = [credentialsPage, loginPage, registerPage, homePage];
             views.forEach(v => v.classList.add('hidden'));
             view.classList.remove('hidden');
         };
@@ -144,9 +165,16 @@
             document.getElementById('modal-overlay').classList.add('hidden');
         };
 
+        // Event listeners for modals
         closeMessageBtn.addEventListener('click', hideMessageBox);
         messageBoxOverlay.addEventListener('click', hideMessageBox);
         closeModalBtn.addEventListener('click', hideModal);
+        
+        // Event listener for the daily targets dropdown
+        dailyTargetsToggle.addEventListener('click', () => {
+            dailyTargetsContent.classList.toggle('hidden');
+            dailyTargetsToggle.querySelector('i').classList.toggle('rotate-180');
+        });
 
         // Firestore Functions
         const getUserRef = (uid) => doc(db, 'artifacts', appId, 'users', uid);
@@ -165,48 +193,21 @@
                     auth = getAuth(firebaseApp);
                     db = getFirestore(firebaseApp);
 
-                    if (initialAuthToken) {
-                        signInWithCustomToken(auth, initialAuthToken)
-                            .then(() => {
-                                onAuthStateChanged(auth, (user) => {
-                                    if (user) {
-                                        userId = user.uid;
-                                        document.getElementById('user-id-display').textContent = userId;
-                                        showView(homePage);
-                                        setupRealtimeListeners();
-                                        renderCalendar();
-                                    } else {
-                                        showView(credentialsPage);
-                                    }
-                                });
-                            })
-                            .catch((error) => {
-                                console.error("Firebase Custom Token sign-in failed:", error);
-                                showMessageBox('Authentication Error', `Failed to sign in with custom token. Error: ${error.message}. Please check your credentials.`);
-                                showView(credentialsPage);
-                            });
-                    } else {
-                        // Sign in anonymously if no custom token is provided
-                        signInAnonymously(auth)
-                            .then(() => {
-                                onAuthStateChanged(auth, (user) => {
-                                    if (user) {
-                                        userId = user.uid;
-                                        document.getElementById('user-id-display').textContent = userId;
-                                        showView(homePage);
-                                        setupRealtimeListeners();
-                                        renderCalendar();
-                                    } else {
-                                        showView(credentialsPage);
-                                    }
-                                });
-                            })
-                            .catch((error) => {
-                                console.error("Firebase Anonymous sign-in failed:", error);
-                                showMessageBox('Authentication Error', `Anonymous sign-in failed. Error: ${error.message}. This could mean anonymous authentication is not enabled in your Firebase project.`);
-                                showView(credentialsPage);
-                            });
-                    }
+                    // Setup authentication state listener
+                    onAuthStateChanged(auth, async (user) => {
+                        if (user) {
+                            // User is signed in.
+                            userId = user.uid;
+                            showView(homePage);
+                            setupRealtimeListeners();
+                            renderCalendar();
+                        } else {
+                            // User is signed out, show the login page
+                            userId = null;
+                            userNameDisplay.textContent = '';
+                            showView(loginPage);
+                        }
+                    });
 
                 } catch (error) {
                     console.error("Firebase initialization failed:", error);
@@ -242,13 +243,82 @@
             try {
                 localStorage.setItem('nutritionix_keys', JSON.stringify({ appId: nutritionixId, apiKey: nutritionixKey }));
                 localStorage.setItem('firebase_config', JSON.stringify(firebaseConfig));
-                showMessageBox('Success', 'Credentials saved! The page will now reload.');
+                showMessageBox('Success', 'Credentials saved! You can now log in.');
                 
-                // Reload the page to ensure a clean initialization
-                window.location.reload();
+                showView(loginPage);
 
             } catch (error) {
                 showMessageBox('Error', 'Failed to save credentials. Please check your inputs.');
+            }
+        });
+        
+        // --- AUTHENTICATION FLOW LOGIC (UPDATED FOR EMAIL/PASSWORD) ---
+
+        // Navigate from Login to Register
+        goToRegisterBtn.addEventListener('click', () => {
+            showView(registerPage);
+        });
+
+        // Navigate from Register to Login
+        goToLoginBtn.addEventListener('click', () => {
+            showView(loginPage);
+        });
+
+        // Login with email and password
+        loginBtn.addEventListener('click', async () => {
+            const email = loginEmailInput.value.trim();
+            const password = loginPasswordInput.value.trim();
+            if (!email || !password) {
+                showMessageBox('Error', 'Please enter both email and password.');
+                return;
+            }
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                // onAuthStateChanged listener will handle the transition to the home page
+            } catch (error) {
+                console.error("Firebase sign-in failed:", error);
+                showMessageBox('Authentication Error', `Failed to sign in. Error: ${error.message}.`);
+            }
+        });
+        
+        // Register new user with email and password
+        registerBtn.addEventListener('click', async () => {
+            const email = registerEmailInput.value.trim();
+            const password = registerPasswordInput.value.trim();
+            
+            if (!email || !password) {
+                showMessageBox('Error', 'Please fill in all fields (Email, and Password).');
+                return;
+            }
+
+            try {
+                // Create the user with email and password
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const uid = userCredential.user.uid;
+                
+                // Automatically set the username from the email prefix
+                const userName = email.split('@')[0];
+                const userDocRef = getUserRef(uid);
+                await setDoc(userDocRef, { userName: userName }, { merge: true });
+                
+                // onAuthStateChanged listener will handle the transition to the home page
+                showMessageBox('Success', 'Registration complete! Welcome to NutriTrack Fun.');
+
+            } catch (error) {
+                showMessageBox('Error', `Failed to register. Error: ${error.message}`);
+                console.error("Error during registration:", error);
+            }
+        });
+
+        // Logout functionality
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                // The onAuthStateChanged listener will handle redirecting to the login page
+            } catch (error) {
+                console.error("Error signing out:", error);
+                showMessageBox('Logout Error', `Failed to log out. Error: ${error.message}`);
             }
         });
         
@@ -262,8 +332,13 @@
             const targets = {
                 calories: parseFloat(e.target['target-calories'].value) || 0,
                 protein: parseFloat(e.target['target-protein'].value) || 0,
-                fat: parseFloat(e.target['target-fat'].value) || 0,
-                carbs: parseFloat(e.target['target-carbs'].value) || 0
+                carbs: parseFloat(e.target['target-carbs'].value) || 0,
+                sugar: parseFloat(e.target['target-sugar'].value) || 0,
+                fiber: parseFloat(e.target['target-fiber'].value) || 0,
+                satFat: parseFloat(e.target['target-satFat'].value) || 0,
+                sodium: parseFloat(e.target['target-sodium'].value) || 0,
+                potassium: parseFloat(e.target['target-potassium'].value) || 0,
+                fat: parseFloat(e.target['target-fat'].value) || 0
             };
             try {
                 const userDocRef = getUserRef(userId);
@@ -337,10 +412,10 @@
                 <div class="bg-white p-4 rounded-xl shadow-md">
                     <h3 class="font-bold text-lg mb-2">${food.food_name}</h3>
                     <p class="text-gray-500 text-sm mb-4">Serving: ${food.serving_qty} ${food.serving_unit} (${food.serving_weight_grams}g)</p>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                    <div class="grid grid-cols-3 gap-3 text-center">
                         <div class="bg-indigo-100 p-3 rounded-lg shadow-sm">
                             <p class="text-xl font-bold text-indigo-700">${food.nf_calories ? food.nf_calories.toFixed(1) : '0'}</p>
-                            <p class="text-xs font-medium text-indigo-500">Cal</p>
+                            <p class="text-xs font-medium text-indigo-500">Calories (kcal)</p>
                         </div>
                         <div class="bg-green-100 p-3 rounded-lg shadow-sm">
                             <p class="text-xl font-bold text-green-700">${food.nf_protein ? food.nf_protein.toFixed(1) : '0'}</p>
@@ -352,7 +427,27 @@
                         </div>
                         <div class="bg-red-100 p-3 rounded-lg shadow-sm">
                             <p class="text-xl font-bold text-red-700">${food.nf_total_carbohydrate ? food.nf_total_carbohydrate.toFixed(1) : '0'}</p>
-                            <p class="text-xs font-medium text-red-500">Carbs (g)</p>
+                            <p class="text-xs font-medium text-red-500">Carbohydrates (g)</p>
+                        </div>
+                        <div class="bg-pink-100 p-3 rounded-lg shadow-sm">
+                            <p class="text-xl font-bold text-pink-700">${food.nf_sugars ? food.nf_sugars.toFixed(1) : '0'}</p>
+                            <p class="text-xs font-medium text-pink-500">Sugar (g)</p>
+                        </div>
+                        <div class="bg-cyan-100 p-3 rounded-lg shadow-sm">
+                            <p class="text-xl font-bold text-cyan-700">${food.nf_dietary_fiber ? food.nf_dietary_fiber.toFixed(1) : '0'}</p>
+                            <p class="text-xs font-medium text-cyan-500">Fiber (g)</p>
+                        </div>
+                        <div class="bg-orange-100 p-3 rounded-lg shadow-sm">
+                            <p class="text-xl font-bold text-orange-700">${food.nf_sodium ? food.nf_sodium.toFixed(1) : '0'}</p>
+                            <p class="text-xs font-medium text-orange-500">Sodium (mg)</p>
+                        </div>
+                        <div class="bg-purple-100 p-3 rounded-lg shadow-sm">
+                            <p class="text-xl font-bold text-purple-700">${food.nf_saturated_fat ? food.nf_saturated_fat.toFixed(1) : '0'}</p>
+                            <p class="text-xs font-medium text-purple-500">Saturated Fat (g)</p>
+                        </div>
+                        <div class="bg-blue-100 p-3 rounded-lg shadow-sm">
+                            <p class="text-xl font-bold text-blue-700">${food.nf_potassium ? food.nf_potassium.toFixed(1) : '0'}</p>
+                            <p class="text-xs font-medium text-blue-500">Potassium (mg)</p>
                         </div>
                     </div>
                 </div>
@@ -404,18 +499,31 @@
         const setupRealtimeListeners = () => {
             if (!userId) return;
 
-            // Listen for user targets
+            // Listen for user targets and name
             const userDocRef = getUserRef(userId);
             onSnapshot(userDocRef, (doc) => {
-                if (doc.exists() && doc.data().dailyTargets) {
-                    const targets = doc.data().dailyTargets;
-                    document.getElementById('target-calories').value = targets.calories;
-                    document.getElementById('target-protein').value = targets.protein;
-                    document.getElementById('target-fat').value = targets.fat;
-                    document.getElementById('target-carbs').value = targets.carbs;
+                if (doc.exists()) {
+                    const data = doc.data();
+                    if (data.dailyTargets) {
+                        const targets = data.dailyTargets;
+                        document.getElementById('target-calories').value = targets.calories;
+                        document.getElementById('target-protein').value = targets.protein;
+                        document.getElementById('target-carbs').value = targets.carbs;
+                        document.getElementById('target-sugar').value = targets.sugar;
+                        document.getElementById('target-fiber').value = targets.fiber;
+                        document.getElementById('target-satFat').value = targets.satFat;
+                        document.getElementById('target-sodium').value = targets.sodium;
+                        document.getElementById('target-potassium').value = targets.potassium;
+                        document.getElementById('target-fat').value = targets.fat;
+                    }
+                    if (data.userName) {
+                        userNameDisplay.textContent = data.userName;
+                    } else {
+                        userNameDisplay.textContent = 'User';
+                    }
                 }
             }, (error) => {
-                console.error("Error getting user targets:", error);
+                console.error("Error getting user data:", error);
             });
 
             // Listen for today's entries
@@ -450,16 +558,21 @@
         const updateDailyProgress = async (data) => {
             const userDoc = await getDoc(getUserRef(userId));
             const targets = userDoc.exists() ? userDoc.data().dailyTargets || {} : {};
-
+        
             const totals = data.foods.reduce((acc, food) => {
                 acc.calories += food.nf_calories || 0;
                 acc.protein += food.nf_protein || 0;
                 acc.fat += food.nf_total_fat || 0;
                 acc.carbs += food.nf_total_carbohydrate || 0;
+                acc.sugar += food.nf_sugars || 0;
+                acc.fiber += food.nf_dietary_fiber || 0;
+                acc.sodium += food.nf_sodium || 0;
+                acc.satFat += food.nf_saturated_fat || 0;
+                acc.potassium += food.nf_potassium || 0;
                 return acc;
-            }, { calories: 0, protein: 0, fat: 0, carbs: 0 });
+            }, { calories: 0, protein: 0, fat: 0, carbs: 0, sugar: 0, fiber: 0, sodium: 0, satFat: 0, potassium: 0 });
 
-            const nutrients = ['calories', 'protein', 'fat', 'carbs'];
+            const nutrients = ['calories', 'protein', 'fat', 'carbs', 'sugar', 'fiber', 'sodium', 'satFat', 'potassium'];
             dailyProgressContainer.innerHTML = '';
             nutrients.forEach(nutrient => {
                 const target = targets[nutrient] || 1;
@@ -475,26 +588,66 @@
                     case 'calories': title = 'Calories'; unit = 'kcal'; colorClass = 'text-indigo-600'; color = '#4F46E5'; break;
                     case 'protein': title = 'Protein'; unit = 'g'; colorClass = 'text-green-600'; color = '#10B981'; break;
                     case 'fat': title = 'Fat'; unit = 'g'; colorClass = 'text-yellow-600'; color = '#EAB308'; break;
-                    case 'carbs': title = 'Carbs'; unit = 'g'; colorClass = 'text-red-600'; color = '#EF4444'; break;
+                    case 'carbs': title = 'Carbohydrates'; unit = 'g'; colorClass = 'text-red-600'; color = '#EF4444'; break;
+                    case 'sugar': title = 'Sugar'; unit = 'g'; colorClass = 'text-pink-600'; color = '#EC4899'; break;
+                    case 'fiber': title = 'Fiber'; unit = 'g'; colorClass = 'text-cyan-600'; color = '#06B6D4'; break;
+                    case 'sodium': title = 'Sodium'; unit = 'mg'; colorClass = 'text-orange-600'; color = '#F97316'; break;
+                    case 'satFat': title = 'Saturated Fat'; unit = 'g'; colorClass = 'text-purple-660'; color = '#9333EA'; break;
+                    case 'potassium': title = 'Potassium'; unit = 'mg'; colorClass = 'text-blue-600'; color = '#3B82F6'; break;
                 }
 
                 const svgHtml = `
-                    <div class="flex flex-col items-center p-4 bg-white rounded-xl shadow-md">
-                        <div class="relative w-24 h-24">
+                    <div class="flex flex-col items-center p-2 bg-white rounded-xl shadow-md">
+                        <div class="relative w-16 h-16">
                             <svg class="progress-circle absolute top-0 left-0" viewBox="0 0 36 36">
                                 <circle class="progress-circle-bg" cx="18" cy="18" r="16" fill="none" stroke-width="4"></circle>
                                 <circle class="progress-circle-fg" cx="18" cy="18" r="16" fill="none" stroke="${color}" stroke-width="4" stroke-dasharray="100" stroke-dashoffset="${100 - percentage}"></circle>
                             </svg>
                             <div class="absolute inset-0 flex items-center justify-center flex-col">
-                                <p class="text-lg font-bold ${colorClass}">${current.toFixed(0)}</p>
+                                <p class="text-md font-bold ${colorClass}">${current.toFixed(0)}</p>
                                 <p class="text-xs text-gray-500">${unit}</p>
                             </div>
                         </div>
-                        <p class="mt-2 text-sm font-medium text-gray-700">${title}</p>
+                        <p class="mt-1 text-xs font-medium text-gray-700">${title}</p>
                     </div>
                 `;
                 dailyProgressContainer.innerHTML += svgHtml;
             });
+        };
+
+        // Helper function to create the progress circle SVG for the modal/recent entries
+        const createNutrientCircles = (food) => {
+            return `
+                <div class="grid grid-cols-4 gap-2 text-center">
+                    ${createSingleCircle(food.nf_calories || 0, 'kcal', 'Cal', 'text-indigo-600', '#4F46E5', 500)}
+                    ${createSingleCircle(food.nf_protein || 0, 'g', 'Pro', 'text-green-600', '#10B981', 100)}
+                    ${createSingleCircle(food.nf_total_carbohydrate || 0, 'g', 'Carb', 'text-red-600', '#EF4444', 100)}
+                    ${createSingleCircle(food.nf_total_fat || 0, 'g', 'Fat', 'text-yellow-600', '#EAB308', 100)}
+                </div>
+            `;
+        };
+
+        const createSingleCircle = (value, unit, label, colorClass, color, maxValue) => {
+            const size = 12; 
+            const circumference = 2 * Math.PI * (size - 2); 
+            const percentage = Math.min(100, (value / maxValue) * 100); 
+            const offset = circumference - percentage / 100 * circumference;
+            
+            return `
+                <div class="flex flex-col items-center p-2">
+                    <div class="relative w-12 h-12">
+                        <svg class="progress-circle absolute top-0 left-0" viewBox="0 0 24 24">
+                            <circle class="progress-circle-bg" cx="12" cy="12" r="10" fill="none" stroke-width="2"></circle>
+                            <circle class="progress-circle-fg" cx="12" cy="12" r="10" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"></circle>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center flex-col">
+                            <p class="text-xs font-bold ${colorClass}">${value.toFixed(0)}</p>
+                            <p class="text-2xs text-gray-500">${unit}</p>
+                        </div>
+                    </div>
+                    <p class="mt-1 text-xs font-medium text-gray-700">${label}</p>
+                </div>
+            `;
         };
 
         // Display recent entries as collapsible dropdowns
@@ -514,9 +667,9 @@
                 let foodListHtml = '';
                 entry.foods.forEach(food => {
                     foodListHtml += `
-                        <div class="flex justify-between items-center py-2 border-b last:border-b-0">
-                            <p class="text-sm text-gray-700">${food.food_name}</p>
-                            <p class="text-sm font-semibold text-indigo-600">${food.nf_calories ? food.nf_calories.toFixed(0) : '0'} kcal</p>
+                        <div class="flex flex-col bg-gray-50 p-3 rounded-lg shadow-sm border-b-2 border-gray-100 last:border-b-0">
+                            <p class="text-sm font-semibold text-gray-800 mb-2">${food.food_name}</p>
+                            ${createNutrientCircles(food)}
                         </div>
                     `;
                 });
@@ -530,7 +683,7 @@
                             </div>
                             <i class="fas fa-chevron-down text-gray-400 transform transition-transform duration-200"></i>
                         </div>
-                        <div class="dropdown-content hidden mt-3">
+                        <div class="dropdown-content hidden mt-3 space-y-2">
                             ${foodListHtml}
                         </div>
                     </div>
@@ -587,10 +740,10 @@
                     totalCalories = entry.foods.reduce((sum, food) => sum + (food.nf_calories || 0), 0);
                     const percentage = (totalCalories / targetCalories) * 100;
                     
-                    if (percentage >= 90) progressClass = 'achieved-100';
-                    else if (percentage >= 70) progressClass = 'achieved-90';
-                    else if (percentage >= 50) progressClass = 'achieved-70';
-                    else if (percentage >= 25) progressClass = 'achieved-50';
+                    if (percentage >= 100) progressClass = 'achieved-100';
+                    else if (percentage >= 90) progressClass = 'achieved-90';
+                    else if (percentage >= 70) progressClass = 'achieved-70';
+                    else if (percentage >= 50) progressClass = 'achieved-50';
                     else progressClass = 'achieved-25';
                 }
 
@@ -598,7 +751,7 @@
                 const borderClass = isToday ? 'border-2 border-indigo-600' : 'border-none';
 
                 cells += `
-                    <div class="calendar-cell w-10 h-10 flex items-center justify-center text-sm rounded-lg cursor-pointer ${progressClass} ${borderClass}" data-date="${dateStr}" data-calories="${totalCalories}">
+                    <div class="calendar-cell w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-sm rounded-lg cursor-pointer ${progressClass} ${borderClass}" data-date="${dateStr}" data-calories="${totalCalories}">
                         ${day}
                     </div>
                 `;
@@ -613,16 +766,18 @@
                     let modalHtml = `<h3 class="text-xl font-bold mb-4">Entries for ${date}</h3>`;
                     
                     if (entry && entry.foods.length > 0) {
-                        modalHtml += `<ul class="space-y-2">`;
+                        modalHtml += `<div class="space-y-4">`;
                         entry.foods.forEach(food => {
-                            modalHtml += `
-                                <li class="bg-gray-100 p-3 rounded-lg">
-                                    <p class="font-semibold text-gray-800">${food.food_name}</p>
-                                    <p class="text-sm text-gray-600">${food.nf_calories.toFixed(1)} kcal, ${food.nf_protein.toFixed(1)}g Protein</p>
-                                </li>
+                            // Generate the new circular display for each food item
+                            const foodCircles = `
+                                <div class="bg-gray-50 p-4 rounded-xl shadow-sm">
+                                    <p class="font-semibold text-gray-800 mb-2">${food.food_name}</p>
+                                    ${createNutrientCircles(food)}
+                                </div>
                             `;
+                            modalHtml += foodCircles;
                         });
-                        modalHtml += `</ul>`;
+                        modalHtml += `</div>`;
                     } else {
                         modalHtml += `<p class="text-gray-600">No entries for this day.</p>`;
                     }
@@ -644,7 +799,7 @@
 
         // Start the app logic
         initApp();
-
+        
     </script>
 
     <!-- App Views -->
@@ -657,163 +812,210 @@
                 <p class="text-gray-500">Please provide your API keys and Firebase config to get started.</p>
             </div>
             <div class="space-y-6">
+                <!-- Nutritionix API Keys Section -->
                 <div>
-                    <h2 class="text-lg font-semibold text-gray-700 mb-2">Nutritionix API Keys</h2>
-                    <p class="text-sm text-gray-500 mb-2">You can get these from your Nutritionix account dashboard.</p>
-                    <div class="space-y-3">
-                        <div>
-                            <label for="nutritionix-id-input" class="block text-sm font-medium text-gray-700">App ID (x-app-id)</label>
-                            <input type="text" id="nutritionix-id-input" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                        </div>
-                        <div>
-                            <label for="nutritionix-key-input" class="block text-sm font-medium text-gray-700">App Key (x-app-key)</label>
-                            <input type="text" id="nutritionix-key-input" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                        </div>
-                    </div>
+                    <h2 class="text-xl font-semibold text-gray-700 mb-3">Nutritionix API Keys</h2>
+                    <input type="text" id="nutritionix-id-input" placeholder="Nutritionix App ID" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 mb-2">
+                    <input type="text" id="nutritionix-key-input" placeholder="Nutritionix API Key" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
                 </div>
+                <!-- Firebase Config Section -->
                 <div>
-                    <h2 class="text-lg font-semibold text-gray-700 mb-2">Firebase Configuration</h2>
-                    <p class="text-sm text-gray-500 mb-2">Enter the values from your Firebase project settings.</p>
-                    <div class="space-y-3">
-                        <div>
-                            <label for="fb-api-key-input" class="block text-sm font-medium text-gray-700">apiKey</label>
-                            <input type="text" id="fb-api-key-input" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                        </div>
-                        <div>
-                            <label for="fb-auth-domain-input" class="block text-sm font-medium text-gray-700">authDomain</label>
-                            <input type="text" id="fb-auth-domain-input" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                        </div>
-                        <div>
-                            <label for="fb-project-id-input" class="block text-sm font-medium text-gray-700">projectId</label>
-                            <input type="text" id="fb-project-id-input" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                        </div>
-                        <div>
-                            <label for="fb-storage-bucket-input" class="block text-sm font-medium text-gray-700">storageBucket</label>
-                            <input type="text" id="fb-storage-bucket-input" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                        </div>
-                        <div>
-                            <label for="fb-messaging-sender-id-input" class="block text-sm font-medium text-gray-700">messagingSenderId</label>
-                            <input type="text" id="fb-messaging-sender-id-input" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                        </div>
-                        <div>
-                            <label for="fb-app-id-input" class="block text-sm font-medium text-gray-700">appId</label>
-                            <input type="text" id="fb-app-id-input" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                        </div>
-                    </div>
+                    <h2 class="text-xl font-semibold text-gray-700 mb-3">Firebase Config</h2>
+                    <input type="text" id="fb-api-key-input" placeholder="apiKey" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 mb-2">
+                    <input type="text" id="fb-auth-domain-input" placeholder="authDomain" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 mb-2">
+                    <input type="text" id="fb-project-id-input" placeholder="projectId" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 mb-2">
+                    <input type="text" id="fb-storage-bucket-input" placeholder="storageBucket" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 mb-2">
+                    <input type="text" id="fb-messaging-sender-id-input" placeholder="messagingSenderId" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 mb-2">
+                    <input type="text" id="fb-app-id-input" placeholder="appId" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
                 </div>
+                <button id="save-credentials-btn" class="w-full mt-4 py-3 rounded-xl font-bold btn-primary">
+                    Save Credentials
+                </button>
             </div>
-            <button id="save-credentials-btn" class="btn-primary w-full py-3 px-4 rounded-lg text-lg font-semibold mt-6">Save & Continue</button>
         </div>
 
-        <!-- Home Page -->
-        <div id="home-page" class="w-full max-w-4xl p-4 bg-gray-50 rounded-2xl shadow-xl space-y-8 hidden">
-            <!-- Header -->
-            <header class="flex justify-between items-center bg-white p-4 rounded-xl shadow-md">
-                <div class="flex-grow">
-                    <h1 class="text-xl font-bold text-gray-800">NutriTrack</h1>
-                    <p class="text-sm text-gray-500">Your Firebase User ID: <span id="user-id-display">N/A</span></p>
+        <!-- Login Page (Updated for Email/Password) -->
+        <div id="login-page" class="w-full max-w-sm bg-white rounded-2xl shadow-xl p-8 hidden">
+            <div class="text-center mb-6">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">Welcome Back!</h1>
+                <p class="text-gray-500">Sign in to continue.</p>
+            </div>
+            <div class="space-y-4">
+                <input type="email" id="login-email-input" placeholder="Email Address" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                <input type="password" id="login-password-input" placeholder="Password" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                <button id="login-btn" class="w-full py-3 rounded-xl font-bold btn-primary">
+                    Sign In
+                </button>
+                <button id="go-to-register-btn" class="w-full py-3 rounded-xl font-bold bg-gray-200 text-gray-800">
+                    New User? Register here
+                </button>
+            </div>
+        </div>
+        
+        <!-- Register Page (Updated for Email/Password) -->
+        <div id="register-page" class="w-full max-w-sm bg-white rounded-2xl shadow-xl p-8 hidden">
+            <div class="text-center mb-6">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">Create Account</h1>
+                <p class="text-gray-500">Enter your details to get started.</p>
+            </div>
+            <div class="space-y-4">
+                <input type="email" id="register-email-input" placeholder="Email Address" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                <input type="password" id="register-password-input" placeholder="Password" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                <button id="register-btn" class="w-full py-3 rounded-xl font-bold btn-primary">
+                    Register and Sign In
+                </button>
+                <button id="go-to-login-btn" class="w-full py-3 rounded-xl font-bold text-gray-600 hover:underline">
+                    Already have an account? Sign in.
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Home Page (hidden initially) -->
+        <div id="home-page" class="w-full flex-grow hidden flex flex-col items-center p-4 md:p-8">
+            <header class="w-full max-w-4xl flex flex-col md:flex-row justify-between items-center mb-6 space-y-4 md:space-y-0">
+                <h1 class="text-3xl font-bold text-gray-800">NutriTrack Fun</h1>
+                <div class="flex items-center space-x-2">
+                    <div class="flex items-center text-sm bg-white p-2 rounded-xl shadow-md">
+                        <i class="fas fa-user-circle text-gray-400 mr-2"></i>
+                        <p id="user-name-display" class="text-gray-600 font-bold">User</p>
+                    </div>
+                    <button id="logout-btn" class="px-4 py-2 text-sm rounded-xl font-bold bg-red-500 text-white hover:bg-red-600 transition-colors">
+                        Logout
+                    </button>
                 </div>
             </header>
 
-            <!-- Search Section -->
-            <div class="bg-white p-6 rounded-2xl shadow-md">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">Track Food</h2>
-                <div class="flex space-x-2">
-                    <input type="text" id="food-query-input" placeholder="e.g., 1 large apple, 100g chicken" class="flex-grow px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200 w-full">
-                    <button id="search-btn" class="btn-primary p-3 rounded-lg aspect-square">
-                        <i class="fas fa-search text-lg"></i>
-                    </button>
-                </div>
-                <div id="results-container" class="mt-4"></div>
-                <button id="add-food-btn" class="btn-primary w-full py-3 px-4 rounded-lg font-semibold text-lg mt-4 hidden">
-                    Add to Log
-                </button>
-            </div>
+            <!-- Main Grid Layout -->
+            <div class="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-            <!-- Daily Progress Section -->
-            <div class="bg-white p-6 rounded-2xl shadow-md">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">Daily Progress</h2>
-                <div id="daily-progress-container" class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <!-- Progress circles will be dynamically added here -->
-                </div>
-            </div>
-            
-            <!-- Daily Log Entries Section -->
-            <div class="bg-white p-6 rounded-2xl shadow-md">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-semibold text-gray-800">Recent Entries</h2>
-                    <button class="text-indigo-600 font-medium text-sm">Show More</button>
-                </div>
-                <div id="daily-entries-container" class="space-y-3">
-                    <!-- Recent entries will be dynamically added here -->
-                </div>
-            </div>
-
-            <!-- Calendar Section -->
-            <div class="bg-white p-6 rounded-2xl shadow-md">
-                <div class="flex justify-between items-center mb-4">
-                    <button id="prev-month-btn" class="p-2 rounded-full hover:bg-gray-100 transition"><i class="fas fa-chevron-left text-gray-600"></i></button>
-                    <h2 id="current-month-display" class="text-xl font-semibold text-gray-800"></h2>
-                    <button id="next-month-btn" class="p-2 rounded-full hover:bg-gray-100 transition"><i class="fas fa-chevron-right text-gray-600"></i></button>
-                </div>
-                <div class="grid grid-cols-7 text-center text-sm font-medium text-gray-400 mb-2">
-                    <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
-                </div>
-                <div id="calendar-container" class="grid grid-cols-7 gap-1">
-                    <!-- Calendar cells will be dynamically added here -->
-                </div>
-            </div>
-
-            <!-- Daily Targets Form -->
-            <div class="bg-white p-6 rounded-2xl shadow-md">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">Set Daily Targets</h2>
-                <form id="daily-targets-form" class="space-y-4">
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                            <label for="target-calories" class="block text-sm font-medium text-gray-700">Calories (kcal)</label>
-                            <input type="number" id="target-calories" value="2000" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                        </div>
-                        <div>
-                            <label for="target-protein" class="block text-sm font-medium text-gray-700">Protein (g)</label>
-                            <input type="number" id="target-protein" value="150" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                        </div>
-                        <div>
-                            <label for="target-fat" class="block text-sm font-medium text-gray-700">Fat (g)</label>
-                            <input type="number" id="target-fat" value="70" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                        </div>
-                        <div>
-                            <label for="target-carbs" class="block text-sm font-medium text-gray-700">Carbs (g)</label>
-                            <input type="number" id="target-carbs" value="250" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                <!-- Column 1: Daily Progress & Search -->
+                <div class="flex flex-col space-y-6">
+                    <!-- Daily Progress -->
+                    <div class="bg-white rounded-2xl shadow-xl p-4 md:p-6">
+                        <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">Today's Progress</h2>
+                        <div id="daily-progress-container" class="grid grid-cols-3 md:grid-cols-3 gap-2 md:gap-4">
+                            <!-- Progress circles will be injected here by JS -->
                         </div>
                     </div>
-                    <button type="submit" class="btn-primary w-full py-2 px-4 rounded-lg font-semibold">Save Targets</button>
-                </form>
+
+                    <!-- Food Search -->
+                    <div class="bg-white rounded-2xl shadow-xl p-4 md:p-6">
+                        <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">Log a Meal</h2>
+                        <div class="flex items-center space-x-2 mb-4">
+                            <input type="text" id="food-query-input" placeholder="e.g. 1 bowl of oatmeal, 2 eggs" class="flex-grow px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                            <button id="search-btn" class="w-12 h-12 flex items-center justify-center rounded-xl btn-primary">
+                                <i class="fas fa-search text-white"></i>
+                            </button>
+                        </div>
+                        <div id="results-container" class="mb-4">
+                            <!-- Search results will be displayed here -->
+                        </div>
+                        <button id="add-food-btn" class="w-full py-3 rounded-xl font-bold btn-primary hidden">
+                            <i class="fas fa-plus mr-2"></i> Add to Today's Log
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Column 2: Calendar & Targets -->
+                <div class="flex flex-col space-y-6">
+                    
+                    <!-- Monthly Calendar -->
+                    <div class="bg-white rounded-2xl shadow-xl p-4 md:p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <button id="prev-month-btn" class="text-gray-500 hover:text-green-500 transition-colors"><i class="fas fa-chevron-left"></i></button>
+                            <h3 id="current-month-display" class="text-lg font-semibold text-gray-800"></h3>
+                            <button id="next-month-btn" class="text-gray-500 hover:text-green-500 transition-colors"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                        <div class="grid grid-cols-7 text-center font-medium text-gray-500 mb-2 text-xs md:text-sm">
+                            <span>Sun</span>
+                            <span>Mon</span>
+                            <span>Tue</span>
+                            <span>Wed</span>
+                            <span>Thu</span>
+                            <span>Fri</span>
+                            <span>Sat</span>
+                        </div>
+                        <div id="calendar-container" class="grid grid-cols-7 gap-1">
+                            <!-- Calendar cells will be injected here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Daily Targets as a collapsible dropdown -->
+                    <div class="bg-white rounded-2xl shadow-xl p-4 md:p-6">
+                        <div id="daily-targets-toggle" class="flex justify-between items-center cursor-pointer">
+                            <h2 class="text-xl md:text-2xl font-bold text-gray-800">Daily Targets</h2>
+                            <i class="fas fa-chevron-down text-gray-400 transform transition-transform duration-200"></i>
+                        </div>
+                        <div id="daily-targets-content" class="hidden mt-4">
+                            <form id="daily-targets-form" class="space-y-4">
+                                <div>
+                                    <label for="target-calories" class="block text-sm font-medium text-gray-700">Calories (kcal)</label>
+                                    <input type="number" id="target-calories" name="target-calories" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                                </div>
+                                <div>
+                                    <label for="target-protein" class="block text-sm font-medium text-gray-700">Protein (g)</label>
+                                    <input type="number" id="target-protein" name="target-protein" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                                </div>
+                                <div>
+                                    <label for="target-carbs" class="block text-sm font-medium text-gray-700">Carbohydrates (g)</label>
+                                    <input type="number" id="target-carbs" name="target-carbs" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                                </div>
+                                <div>
+                                    <label for="target-sugar" class="block text-sm font-medium text-gray-700">Sugar (g)</label>
+                                    <input type="number" id="target-sugar" name="target-sugar" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                                </div>
+                                <div>
+                                    <label for="target-fiber" class="block text-sm font-medium text-gray-700">Fiber (g)</label>
+                                    <input type="number" id="target-fiber" name="target-fiber" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                                </div>
+                                <div>
+                                    <label for="target-satFat" class="block text-sm font-medium text-gray-700">Saturated Fat (g)</label>
+                                    <input type="number" id="target-satFat" name="target-satFat" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                                </div>
+                                <div>
+                                    <label for="target-sodium" class="block text-sm font-medium text-gray-700">Sodium (mg)</label>
+                                    <input type="number" id="target-sodium" name="target-sodium" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                                </div>
+                                <div>
+                                    <label for="target-potassium" class="block text-sm font-medium text-gray-700">Potassium (mg)</label>
+                                    <input type="number" id="target-potassium" name="target-potassium" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                                </div>
+                                <div>
+                                    <label for="target-fat" class="block text-sm font-medium text-gray-700">Fat (g)</label>
+                                    <input type="number" id="target-fat" name="target-fat" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                                </div>
+                                <button type="submit" class="w-full py-3 rounded-xl font-bold btn-primary">
+                                    Save Targets
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Recent Entries -->
+                    <div class="bg-white rounded-2xl shadow-xl p-4 md:p-6">
+                        <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">Recent Entries</h2>
+                        <div id="daily-entries-container" class="space-y-3">
+                            <!-- Recent entries will be injected here by JS -->
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
+
     </div>
 
-    <!-- Modals -->
-    <div id="modal" class="modal hidden">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold text-gray-800">Day's Intake</h3>
-            <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div id="modal-content" class="max-h-96 overflow-y-auto"></div>
-    </div>
-    <div id="modal-overlay" class="modal-overlay hidden"></div>
-
-    <!-- Message Box UI -->
-    <div id="message-box" class="message-box hidden">
-        <div class="flex justify-between items-center mb-4">
-            <h3 id="message-title" class="text-lg font-bold text-gray-800"></h3>
-            <button id="close-message-btn" class="text-gray-500 hover:text-gray-800">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <p id="message-content" class="text-gray-600"></p>
-    </div>
+    <!-- Modals and Overlays -->
     <div id="message-box-overlay" class="message-box-overlay hidden"></div>
+    <div id="message-box" class="message-box hidden">
+        <h3 id="message-title" class="font-bold text-xl mb-2"></h3>
+        <p id="message-content" class="text-gray-600 mb-4"></p>
+        <button id="close-message-btn" class="w-full py-2 rounded-xl bg-green-500 text-white font-bold">OK</button>
+    </div>
+
+    <div id="modal-overlay" class="modal-overlay hidden"></div>
+    <div id="modal" class="modal hidden">
+        <div id="modal-content"></div>
+        <button id="close-modal-btn" class="w-full py-2 mt-4 rounded-xl bg-green-500 text-white font-bold">Close</button>
+    </div>
 </body>
 </html>
