@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriTrack Fun</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .message-box, .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            z-index: 1000;
+            width: 90%;
+            max-width: 400px;
+        }
+        .message-box-overlay, .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+        .btn-primary {
+            background-image: linear-gradient(to right, #6EE7B7, #34D399, #10B981);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+        .progress-circle {
+            transform: rotate(-90deg);
+        }
+        .progress-circle-bg {
+            stroke: #e2e8f0;
+        }
+        .progress-circle-fg {
+            transition: stroke-dashoffset 0.5s ease-in-out;
+        }
+        .calendar-cell.achieved-100 { background-color: #10B981; }
+        .calendar-cell.achieved-90 { background-color: #A3E635; }
+        .calendar-cell.achieved-70 { background-color: #FACC15; }
+        .calendar-cell.achieved-50 { background-color: #F87171; }
+        .calendar-cell.achieved-25 { background-color: #EF4444; }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+    <!-- PWA Service Worker Registration & Firebase Setup -->
+    <script type="module">
+        // Firebase SDK imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global app ID for Firestore
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // DOM Elements
+        const credentialsPage = document.getElementById('credentials-page');
+        const homePage = document.getElementById('home-page');
+        const mainContent = document.getElementById('main-content');
+        const nutritionixIdInput = document.getElementById('nutritionix-id-input');
+        const nutritionixKeyInput = document.getElementById('nutritionix-key-input');
+        
+        // New Firebase config input fields
+        const fbApiKeyInput = document.getElementById('fb-api-key-input');
+        const fbAuthDomainInput = document.getElementById('fb-auth-domain-input');
+        const fbProjectIdInput = document.getElementById('fb-project-id-input');
+        const fbStorageBucketInput = document.getElementById('fb-storage-bucket-input');
+        const fbMessagingSenderIdInput = document.getElementById('fb-messaging-sender-id-input');
+        const fbAppIdInput = document.getElementById('fb-app-id-input');
+        
+        const saveCredentialsBtn = document.getElementById('save-credentials-btn');
+        const foodQueryInput = document.getElementById('food-query-input');
+        const searchBtn = document.getElementById('search-btn');
+        const resultsContainer = document.getElementById('results-container');
+        const addFoodBtn = document.getElementById('add-food-btn');
+        const dailyTargetsForm = document.getElementById('daily-targets-form');
+        const dailyProgressContainer = document.getElementById('daily-progress-container');
+        const dailyEntriesContainer = document.getElementById('daily-entries-container');
+        const calendarContainer = document.getElementById('calendar-container');
+        const prevMonthBtn = document.getElementById('prev-month-btn');
+        const nextMonthBtn = document.getElementById('next-month-btn');
+        const currentMonthDisplay = document.getElementById('current-month-display');
+        const messageBox = document.getElementById('message-box');
+        const messageTitle = document.getElementById('message-title');
+        const messageContent = document.getElementById('message-content');
+        const closeMessageBtn = document.getElementById('close-message-btn');
+        const messageBoxOverlay = document.getElementById('message-box-overlay');
+        const modal = document.getElementById('modal');
+        const modalContent = document.getElementById('modal-content');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        
+        let db, auth, userId;
+        let currentFoodItem = null;
+        let currentMonth = new Date();
+
+        // Helper Functions
+        const showView = (view) => {
+            const views = [credentialsPage, homePage];
+            views.forEach(v => v.classList.add('hidden'));
+            view.classList.remove('hidden');
+        };
+
+        const showMessageBox = (title, content) => {
+            messageTitle.textContent = title;
+            messageContent.textContent = content;
+            messageBox.classList.remove('hidden');
+            messageBoxOverlay.classList.remove('hidden');
+        };
+
+        const hideMessageBox = () => {
+            messageBox.classList.add('hidden');
+            messageBoxOverlay.classList.add('hidden');
+        };
+        
+        const showModal = (content) => {
+            modalContent.innerHTML = content;
+            modal.classList.remove('hidden');
+            document.getElementById('modal-overlay').classList.remove('hidden');
+        };
+
+        const hideModal = () => {
+            modal.classList.add('hidden');
+            document.getElementById('modal-overlay').classList.add('hidden');
+        };
+
+        closeMessageBtn.addEventListener('click', hideMessageBox);
+        messageBoxOverlay.addEventListener('click', hideMessageBox);
+        closeModalBtn.addEventListener('click', hideModal);
+
+        // Firestore Functions
+        const getUserRef = (uid) => doc(db, 'artifacts', appId, 'users', uid);
+        const getDailyEntriesRef = (uid) => collection(db, 'artifacts', appId, 'users', uid, 'dailyEntries');
+
+        // Main app initialization function
+        const initApp = () => {
+            // Check for credentials in localStorage
+            const nutritionixKeys = JSON.parse(localStorage.getItem('nutritionix_keys'));
+            const firebaseConfig = JSON.parse(localStorage.getItem('firebase_config'));
+            
+            if (nutritionixKeys && firebaseConfig) {
+                // Initialize Firebase with user-provided config
+                try {
+                    const firebaseApp = initializeApp(firebaseConfig);
+                    auth = getAuth(firebaseApp);
+                    db = getFirestore(firebaseApp);
+
+                    if (initialAuthToken) {
+                        signInWithCustomToken(auth, initialAuthToken)
+                            .then(() => {
+                                onAuthStateChanged(auth, (user) => {
+                                    if (user) {
+                                        userId = user.uid;
+                                        document.getElementById('user-id-display').textContent = userId;
+                                        showView(homePage);
+                                        setupRealtimeListeners();
+                                        renderCalendar();
+                                    } else {
+                                        showView(credentialsPage);
+                                    }
+                                });
+                            })
+                            .catch((error) => {
+                                console.error("Firebase Custom Token sign-in failed:", error);
+                                showMessageBox('Authentication Error', `Failed to sign in with custom token. Error: ${error.message}. Please check your credentials.`);
+                                showView(credentialsPage);
+                            });
+                    } else {
+                        // Sign in anonymously if no custom token is provided
+                        signInAnonymously(auth)
+                            .then(() => {
+                                onAuthStateChanged(auth, (user) => {
+                                    if (user) {
+                                        userId = user.uid;
+                                        document.getElementById('user-id-display').textContent = userId;
+                                        showView(homePage);
+                                        setupRealtimeListeners();
+                                        renderCalendar();
+                                    } else {
+                                        showView(credentialsPage);
+                                    }
+                                });
+                            })
+                            .catch((error) => {
+                                console.error("Firebase Anonymous sign-in failed:", error);
+                                showMessageBox('Authentication Error', `Anonymous sign-in failed. Error: ${error.message}. This could mean anonymous authentication is not enabled in your Firebase project.`);
+                                showView(credentialsPage);
+                            });
+                    }
+
+                } catch (error) {
+                    console.error("Firebase initialization failed:", error);
+                    showMessageBox('Initialization Error', `Failed to initialize Firebase. Error: ${error.message}. Please check your config and try again.`);
+                    showView(credentialsPage);
+                }
+            } else {
+                // Show credentials page if any keys are missing
+                showView(credentialsPage);
+            }
+        };
+
+        // API Credential Saving Logic
+        saveCredentialsBtn.addEventListener('click', () => {
+            const nutritionixId = nutritionixIdInput.value.trim();
+            const nutritionixKey = nutritionixKeyInput.value.trim();
+            
+            // New logic to create firebase config from individual fields
+            const firebaseConfig = {
+                apiKey: fbApiKeyInput.value.trim(),
+                authDomain: fbAuthDomainInput.value.trim(),
+                projectId: fbProjectIdInput.value.trim(),
+                storageBucket: fbStorageBucketInput.value.trim(),
+                messagingSenderId: fbMessagingSenderIdInput.value.trim(),
+                appId: fbAppIdInput.value.trim()
+            };
+
+            if (!nutritionixId || !nutritionixKey || Object.values(firebaseConfig).some(val => !val)) {
+                showMessageBox('Error', 'All fields are required. Please enter your credentials.');
+                return;
+            }
+            
+            try {
+                localStorage.setItem('nutritionix_keys', JSON.stringify({ appId: nutritionixId, apiKey: nutritionixKey }));
+                localStorage.setItem('firebase_config', JSON.stringify(firebaseConfig));
+                showMessageBox('Success', 'Credentials saved! The page will now reload.');
+                
+                // Reload the page to ensure a clean initialization
+                window.location.reload();
+
+            } catch (error) {
+                showMessageBox('Error', 'Failed to save credentials. Please check your inputs.');
+            }
+        });
+        
+        // Save Daily Targets
+        dailyTargetsForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!userId) {
+                showMessageBox('Error', 'User not authenticated.');
+                return;
+            }
+            const targets = {
+                calories: parseFloat(e.target['target-calories'].value) || 0,
+                protein: parseFloat(e.target['target-protein'].value) || 0,
+                fat: parseFloat(e.target['target-fat'].value) || 0,
+                carbs: parseFloat(e.target['target-carbs'].value) || 0
+            };
+            try {
+                const userDocRef = getUserRef(userId);
+                await setDoc(userDocRef, { dailyTargets: targets }, { merge: true });
+                showMessageBox('Success', 'Daily targets saved!');
+            } catch (error) {
+                showMessageBox('Error', 'Failed to save targets.');
+                console.error("Error saving daily targets:", error);
+            }
+        });
+
+        // Nutritionix API Logic
+        searchBtn.addEventListener('click', async () => {
+            const query = foodQueryInput.value.trim();
+            if (!query) {
+                showMessageBox('Input Required', 'Please enter a food item to search.');
+                return;
+            }
+
+            const keys = JSON.parse(localStorage.getItem('nutritionix_keys'));
+            if (!keys || !keys.appId || !keys.apiKey) {
+                showMessageBox('Credentials Missing', 'Please go to the credentials page to enter your API keys.');
+                return;
+            }
+            
+            // Show loading state
+            searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-white"></i>';
+            searchBtn.disabled = true;
+
+            try {
+                const apiUrl = 'https://trackapi.nutritionix.com/v2/natural/nutrients';
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'x-app-id': keys.appId,
+                        'x-app-key': keys.apiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `API error: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                displaySearchResults(data);
+
+            } catch (error) {
+                showMessageBox('Search Error', `Failed to fetch data: ${error.message}`);
+                console.error("Error fetching data:", error);
+            } finally {
+                searchBtn.innerHTML = '<i class="fas fa-search"></i>';
+                searchBtn.disabled = false;
+            }
+        });
+
+        // Display search results
+        const displaySearchResults = (data) => {
+            if (!data.foods || data.foods.length === 0) {
+                resultsContainer.innerHTML = '<p class="text-center text-gray-500">No results found.</p>';
+                addFoodBtn.classList.add('hidden');
+                return;
+            }
+            
+            currentFoodItem = data.foods[0];
+            const food = currentFoodItem;
+
+            let html = `
+                <div class="bg-white p-4 rounded-xl shadow-md">
+                    <h3 class="font-bold text-lg mb-2">${food.food_name}</h3>
+                    <p class="text-gray-500 text-sm mb-4">Serving: ${food.serving_qty} ${food.serving_unit} (${food.serving_weight_grams}g)</p>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                        <div class="bg-indigo-100 p-3 rounded-lg shadow-sm">
+                            <p class="text-xl font-bold text-indigo-700">${food.nf_calories ? food.nf_calories.toFixed(1) : '0'}</p>
+                            <p class="text-xs font-medium text-indigo-500">Cal</p>
+                        </div>
+                        <div class="bg-green-100 p-3 rounded-lg shadow-sm">
+                            <p class="text-xl font-bold text-green-700">${food.nf_protein ? food.nf_protein.toFixed(1) : '0'}</p>
+                            <p class="text-xs font-medium text-green-500">Protein (g)</p>
+                        </div>
+                        <div class="bg-yellow-100 p-3 rounded-lg shadow-sm">
+                            <p class="text-xl font-bold text-yellow-700">${food.nf_total_fat ? food.nf_total_fat.toFixed(1) : '0'}</p>
+                            <p class="text-xs font-medium text-yellow-500">Fat (g)</p>
+                        </div>
+                        <div class="bg-red-100 p-3 rounded-lg shadow-sm">
+                            <p class="text-xl font-bold text-red-700">${food.nf_total_carbohydrate ? food.nf_total_carbohydrate.toFixed(1) : '0'}</p>
+                            <p class="text-xs font-medium text-red-500">Carbs (g)</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            resultsContainer.innerHTML = html;
+            addFoodBtn.classList.remove('hidden');
+        };
+
+        // Add food item to daily log
+        addFoodBtn.addEventListener('click', async () => {
+            if (!currentFoodItem || !userId) return;
+
+            const today = new Date();
+            const dateStr = today.toISOString().slice(0, 10);
+            const foodEntry = {
+                ...currentFoodItem,
+                timestamp: new Date().toISOString(),
+            };
+            
+            try {
+                const dailyEntriesRef = getDailyEntriesRef(userId);
+                const dailyEntryDocRef = doc(dailyEntriesRef, dateStr);
+                const dailyEntryDoc = await getDoc(dailyEntryDocRef);
+
+                let updatedEntries = [];
+                if (dailyEntryDoc.exists()) {
+                    const existingData = dailyEntryDoc.data();
+                    updatedEntries = [...existingData.foods, foodEntry];
+                } else {
+                    updatedEntries.push(foodEntry);
+                }
+
+                await setDoc(dailyEntryDocRef, {
+                    foods: updatedEntries,
+                }, { merge: true });
+                
+                showMessageBox('Success', `${currentFoodItem.food_name} added to your log for today!`);
+                foodQueryInput.value = '';
+                resultsContainer.innerHTML = '';
+                addFoodBtn.classList.add('hidden');
+
+            } catch (error) {
+                showMessageBox('Error', 'Failed to add food entry.');
+                console.error("Error adding food entry:", error);
+            }
+        });
+        
+        // Setup Firestore listeners for real-time updates
+        const setupRealtimeListeners = () => {
+            if (!userId) return;
+
+            // Listen for user targets
+            const userDocRef = getUserRef(userId);
+            onSnapshot(userDocRef, (doc) => {
+                if (doc.exists() && doc.data().dailyTargets) {
+                    const targets = doc.data().dailyTargets;
+                    document.getElementById('target-calories').value = targets.calories;
+                    document.getElementById('target-protein').value = targets.protein;
+                    document.getElementById('target-fat').value = targets.fat;
+                    document.getElementById('target-carbs').value = targets.carbs;
+                }
+            }, (error) => {
+                console.error("Error getting user targets:", error);
+            });
+
+            // Listen for today's entries
+            const today = new Date().toISOString().slice(0, 10);
+            const todayEntryRef = doc(getDailyEntriesRef(userId), today);
+            onSnapshot(todayEntryRef, (doc) => {
+                if (doc.exists()) {
+                    const data = doc.data();
+                    updateDailyProgress(data);
+                } else {
+                    updateDailyProgress({ foods: [] });
+                }
+            }, (error) => {
+                console.error("Error getting today's entries:", error);
+            });
+
+            // Listen for all entries for the calendar and recent logs
+            const allEntriesQuery = query(getDailyEntriesRef(userId));
+            onSnapshot(allEntriesQuery, (snapshot) => {
+                const allEntries = {};
+                snapshot.forEach(doc => {
+                    allEntries[doc.id] = doc.data();
+                });
+                displayRecentEntries(allEntries);
+                renderCalendarWithData(allEntries);
+            }, (error) => {
+                console.error("Error getting all entries:", error);
+            });
+        };
+        
+        // Update the daily progress circles
+        const updateDailyProgress = async (data) => {
+            const userDoc = await getDoc(getUserRef(userId));
+            const targets = userDoc.exists() ? userDoc.data().dailyTargets || {} : {};
+
+            const totals = data.foods.reduce((acc, food) => {
+                acc.calories += food.nf_calories || 0;
+                acc.protein += food.nf_protein || 0;
+                acc.fat += food.nf_total_fat || 0;
+                acc.carbs += food.nf_total_carbohydrate || 0;
+                return acc;
+            }, { calories: 0, protein: 0, fat: 0, carbs: 0 });
+
+            const nutrients = ['calories', 'protein', 'fat', 'carbs'];
+            dailyProgressContainer.innerHTML = '';
+            nutrients.forEach(nutrient => {
+                const target = targets[nutrient] || 1;
+                const current = totals[nutrient] || 0;
+                const percentage = Math.min(100, (current / target) * 100);
+                
+                let title = '';
+                let unit = '';
+                let colorClass = '';
+                let color = '';
+
+                switch (nutrient) {
+                    case 'calories': title = 'Calories'; unit = 'kcal'; colorClass = 'text-indigo-600'; color = '#4F46E5'; break;
+                    case 'protein': title = 'Protein'; unit = 'g'; colorClass = 'text-green-600'; color = '#10B981'; break;
+                    case 'fat': title = 'Fat'; unit = 'g'; colorClass = 'text-yellow-600'; color = '#EAB308'; break;
+                    case 'carbs': title = 'Carbs'; unit = 'g'; colorClass = 'text-red-600'; color = '#EF4444'; break;
+                }
+
+                const svgHtml = `
+                    <div class="flex flex-col items-center p-4 bg-white rounded-xl shadow-md">
+                        <div class="relative w-24 h-24">
+                            <svg class="progress-circle absolute top-0 left-0" viewBox="0 0 36 36">
+                                <circle class="progress-circle-bg" cx="18" cy="18" r="16" fill="none" stroke-width="4"></circle>
+                                <circle class="progress-circle-fg" cx="18" cy="18" r="16" fill="none" stroke="${color}" stroke-width="4" stroke-dasharray="100" stroke-dashoffset="${100 - percentage}"></circle>
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center flex-col">
+                                <p class="text-lg font-bold ${colorClass}">${current.toFixed(0)}</p>
+                                <p class="text-xs text-gray-500">${unit}</p>
+                            </div>
+                        </div>
+                        <p class="mt-2 text-sm font-medium text-gray-700">${title}</p>
+                    </div>
+                `;
+                dailyProgressContainer.innerHTML += svgHtml;
+            });
+        };
+
+        // Display recent entries as collapsible dropdowns
+        const displayRecentEntries = (allEntries) => {
+            const sortedDates = Object.keys(allEntries).sort((a, b) => new Date(b) - new Date(a));
+            const recentDates = sortedDates.slice(0, 5);
+
+            dailyEntriesContainer.innerHTML = '';
+            
+            recentDates.forEach(date => {
+                const entry = allEntries[date];
+                const dateObj = new Date(date + 'T00:00:00');
+                const formattedDate = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+                const totalCalories = entry.foods.reduce((sum, food) => sum + (food.nf_calories || 0), 0);
+
+                let foodListHtml = '';
+                entry.foods.forEach(food => {
+                    foodListHtml += `
+                        <div class="flex justify-between items-center py-2 border-b last:border-b-0">
+                            <p class="text-sm text-gray-700">${food.food_name}</p>
+                            <p class="text-sm font-semibold text-indigo-600">${food.nf_calories ? food.nf_calories.toFixed(0) : '0'} kcal</p>
+                        </div>
+                    `;
+                });
+
+                const dropdownHtml = `
+                    <div class="bg-white rounded-xl shadow-md p-4 mb-3 cursor-pointer" data-dropdown-date="${date}">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-gray-800">${formattedDate}</p>
+                                <p class="text-sm text-gray-500">${totalCalories.toFixed(0)} total calories</p>
+                            </div>
+                            <i class="fas fa-chevron-down text-gray-400 transform transition-transform duration-200"></i>
+                        </div>
+                        <div class="dropdown-content hidden mt-3">
+                            ${foodListHtml}
+                        </div>
+                    </div>
+                `;
+                dailyEntriesContainer.innerHTML += dropdownHtml;
+            });
+
+            // Add event listeners for dropdowns
+            dailyEntriesContainer.querySelectorAll('[data-dropdown-date]').forEach(dropdown => {
+                dropdown.addEventListener('click', (e) => {
+                    e.currentTarget.querySelector('.dropdown-content').classList.toggle('hidden');
+                    e.currentTarget.querySelector('.fa-chevron-down').classList.toggle('rotate-180');
+                });
+            });
+        };
+
+        // Calendar logic
+        const renderCalendar = () => {
+            // Re-fetch all entries when the month changes to update the calendar
+            onSnapshot(query(getDailyEntriesRef(userId)), (snapshot) => {
+                const allEntries = {};
+                snapshot.forEach(doc => {
+                    allEntries[doc.id] = doc.data();
+                });
+                renderCalendarWithData(allEntries);
+            });
+        };
+
+        const renderCalendarWithData = async (allEntries) => {
+            const year = currentMonth.getFullYear();
+            const month = currentMonth.getMonth();
+            currentMonthDisplay.textContent = new Date(year, month).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
+            const firstDayOfMonth = new Date(year, month, 1).getDay();
+            const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+            const today = new Date().toISOString().slice(0, 10);
+            
+            const userDoc = await getDoc(getUserRef(userId));
+            const targets = userDoc.exists() ? userDoc.data().dailyTargets || {} : {};
+            const targetCalories = targets.calories || 1;
+
+            let cells = '';
+            for (let i = 0; i < firstDayOfMonth; i++) {
+                cells += '<div></div>';
+            }
+
+            for (let day = 1; day <= lastDayOfMonth; day++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const entry = allEntries[dateStr];
+                let progressClass = '';
+                let totalCalories = 0;
+
+                if (entry) {
+                    totalCalories = entry.foods.reduce((sum, food) => sum + (food.nf_calories || 0), 0);
+                    const percentage = (totalCalories / targetCalories) * 100;
+                    
+                    if (percentage >= 90) progressClass = 'achieved-100';
+                    else if (percentage >= 70) progressClass = 'achieved-90';
+                    else if (percentage >= 50) progressClass = 'achieved-70';
+                    else if (percentage >= 25) progressClass = 'achieved-50';
+                    else progressClass = 'achieved-25';
+                }
+
+                const isToday = dateStr === today;
+                const borderClass = isToday ? 'border-2 border-indigo-600' : 'border-none';
+
+                cells += `
+                    <div class="calendar-cell w-10 h-10 flex items-center justify-center text-sm rounded-lg cursor-pointer ${progressClass} ${borderClass}" data-date="${dateStr}" data-calories="${totalCalories}">
+                        ${day}
+                    </div>
+                `;
+            }
+            calendarContainer.innerHTML = cells;
+            
+            // Add click listeners to calendar cells
+            calendarContainer.querySelectorAll('.calendar-cell').forEach(cell => {
+                cell.addEventListener('click', () => {
+                    const date = cell.dataset.date;
+                    const entry = allEntries[date];
+                    let modalHtml = `<h3 class="text-xl font-bold mb-4">Entries for ${date}</h3>`;
+                    
+                    if (entry && entry.foods.length > 0) {
+                        modalHtml += `<ul class="space-y-2">`;
+                        entry.foods.forEach(food => {
+                            modalHtml += `
+                                <li class="bg-gray-100 p-3 rounded-lg">
+                                    <p class="font-semibold text-gray-800">${food.food_name}</p>
+                                    <p class="text-sm text-gray-600">${food.nf_calories.toFixed(1)} kcal, ${food.nf_protein.toFixed(1)}g Protein</p>
+                                </li>
+                            `;
+                        });
+                        modalHtml += `</ul>`;
+                    } else {
+                        modalHtml += `<p class="text-gray-600">No entries for this day.</p>`;
+                    }
+                    
+                    showModal(modalHtml);
+                });
+            });
+        };
+
+        prevMonthBtn.addEventListener('click', () => {
+            currentMonth.setMonth(currentMonth.getMonth() - 1);
+            renderCalendar();
+        });
+
+        nextMonthBtn.addEventListener('click', () => {
+            currentMonth.setMonth(currentMonth.getMonth() + 1);
+            renderCalendar();
+        });
+
+        // Start the app logic
+        initApp();
+
+    </script>
+
+    <!-- App Views -->
+    <div id="main-content" class="flex-grow flex flex-col justify-center items-center p-4">
+
+        <!-- API & Firebase Credentials Setup Page -->
+        <div id="credentials-page" class="w-full max-w-lg bg-white rounded-2xl shadow-xl p-8 hidden">
+            <div class="text-center mb-6">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">Setup Credentials</h1>
+                <p class="text-gray-500">Please provide your API keys and Firebase config to get started.</p>
+            </div>
+            <div class="space-y-6">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-700 mb-2">Nutritionix API Keys</h2>
+                    <p class="text-sm text-gray-500 mb-2">You can get these from your Nutritionix account dashboard.</p>
+                    <div class="space-y-3">
+                        <div>
+                            <label for="nutritionix-id-input" class="block text-sm font-medium text-gray-700">App ID (x-app-id)</label>
+                            <input type="text" id="nutritionix-id-input" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        </div>
+                        <div>
+                            <label for="nutritionix-key-input" class="block text-sm font-medium text-gray-700">App Key (x-app-key)</label>
+                            <input type="text" id="nutritionix-key-input" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-700 mb-2">Firebase Configuration</h2>
+                    <p class="text-sm text-gray-500 mb-2">Enter the values from your Firebase project settings.</p>
+                    <div class="space-y-3">
+                        <div>
+                            <label for="fb-api-key-input" class="block text-sm font-medium text-gray-700">apiKey</label>
+                            <input type="text" id="fb-api-key-input" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        </div>
+                        <div>
+                            <label for="fb-auth-domain-input" class="block text-sm font-medium text-gray-700">authDomain</label>
+                            <input type="text" id="fb-auth-domain-input" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        </div>
+                        <div>
+                            <label for="fb-project-id-input" class="block text-sm font-medium text-gray-700">projectId</label>
+                            <input type="text" id="fb-project-id-input" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        </div>
+                        <div>
+                            <label for="fb-storage-bucket-input" class="block text-sm font-medium text-gray-700">storageBucket</label>
+                            <input type="text" id="fb-storage-bucket-input" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        </div>
+                        <div>
+                            <label for="fb-messaging-sender-id-input" class="block text-sm font-medium text-gray-700">messagingSenderId</label>
+                            <input type="text" id="fb-messaging-sender-id-input" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        </div>
+                        <div>
+                            <label for="fb-app-id-input" class="block text-sm font-medium text-gray-700">appId</label>
+                            <input type="text" id="fb-app-id-input" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button id="save-credentials-btn" class="btn-primary w-full py-3 px-4 rounded-lg text-lg font-semibold mt-6">Save & Continue</button>
+        </div>
+
+        <!-- Home Page -->
+        <div id="home-page" class="w-full max-w-4xl p-4 bg-gray-50 rounded-2xl shadow-xl space-y-8 hidden">
+            <!-- Header -->
+            <header class="flex justify-between items-center bg-white p-4 rounded-xl shadow-md">
+                <div class="flex-grow">
+                    <h1 class="text-xl font-bold text-gray-800">NutriTrack</h1>
+                    <p class="text-sm text-gray-500">Your Firebase User ID: <span id="user-id-display">N/A</span></p>
+                </div>
+            </header>
+
+            <!-- Search Section -->
+            <div class="bg-white p-6 rounded-2xl shadow-md">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Track Food</h2>
+                <div class="flex space-x-2">
+                    <input type="text" id="food-query-input" placeholder="e.g., 1 large apple, 100g chicken" class="flex-grow px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200 w-full">
+                    <button id="search-btn" class="btn-primary p-3 rounded-lg aspect-square">
+                        <i class="fas fa-search text-lg"></i>
+                    </button>
+                </div>
+                <div id="results-container" class="mt-4"></div>
+                <button id="add-food-btn" class="btn-primary w-full py-3 px-4 rounded-lg font-semibold text-lg mt-4 hidden">
+                    Add to Log
+                </button>
+            </div>
+
+            <!-- Daily Progress Section -->
+            <div class="bg-white p-6 rounded-2xl shadow-md">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Daily Progress</h2>
+                <div id="daily-progress-container" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <!-- Progress circles will be dynamically added here -->
+                </div>
+            </div>
+            
+            <!-- Daily Log Entries Section -->
+            <div class="bg-white p-6 rounded-2xl shadow-md">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800">Recent Entries</h2>
+                    <button class="text-indigo-600 font-medium text-sm">Show More</button>
+                </div>
+                <div id="daily-entries-container" class="space-y-3">
+                    <!-- Recent entries will be dynamically added here -->
+                </div>
+            </div>
+
+            <!-- Calendar Section -->
+            <div class="bg-white p-6 rounded-2xl shadow-md">
+                <div class="flex justify-between items-center mb-4">
+                    <button id="prev-month-btn" class="p-2 rounded-full hover:bg-gray-100 transition"><i class="fas fa-chevron-left text-gray-600"></i></button>
+                    <h2 id="current-month-display" class="text-xl font-semibold text-gray-800"></h2>
+                    <button id="next-month-btn" class="p-2 rounded-full hover:bg-gray-100 transition"><i class="fas fa-chevron-right text-gray-600"></i></button>
+                </div>
+                <div class="grid grid-cols-7 text-center text-sm font-medium text-gray-400 mb-2">
+                    <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                </div>
+                <div id="calendar-container" class="grid grid-cols-7 gap-1">
+                    <!-- Calendar cells will be dynamically added here -->
+                </div>
+            </div>
+
+            <!-- Daily Targets Form -->
+            <div class="bg-white p-6 rounded-2xl shadow-md">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Set Daily Targets</h2>
+                <form id="daily-targets-form" class="space-y-4">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                            <label for="target-calories" class="block text-sm font-medium text-gray-700">Calories (kcal)</label>
+                            <input type="number" id="target-calories" value="2000" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        </div>
+                        <div>
+                            <label for="target-protein" class="block text-sm font-medium text-gray-700">Protein (g)</label>
+                            <input type="number" id="target-protein" value="150" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        </div>
+                        <div>
+                            <label for="target-fat" class="block text-sm font-medium text-gray-700">Fat (g)</label>
+                            <input type="number" id="target-fat" value="70" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        </div>
+                        <div>
+                            <label for="target-carbs" class="block text-sm font-medium text-gray-700">Carbs (g)</label>
+                            <input type="number" id="target-carbs" value="250" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary w-full py-2 px-4 rounded-lg font-semibold">Save Targets</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal" class="modal hidden">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-gray-800">Day's Intake</h3>
+            <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="modal-content" class="max-h-96 overflow-y-auto"></div>
+    </div>
+    <div id="modal-overlay" class="modal-overlay hidden"></div>
+
+    <!-- Message Box UI -->
+    <div id="message-box" class="message-box hidden">
+        <div class="flex justify-between items-center mb-4">
+            <h3 id="message-title" class="text-lg font-bold text-gray-800"></h3>
+            <button id="close-message-btn" class="text-gray-500 hover:text-gray-800">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <p id="message-content" class="text-gray-600"></p>
+    </div>
+    <div id="message-box-overlay" class="message-box-overlay hidden"></div>
+</body>
+</html>
