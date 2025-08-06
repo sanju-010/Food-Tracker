@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NutriTrack Fun</title>
-    <link rel="icon" href="./favicon.ico" type="image/x-icon" />
+    <link rel="icon" href="/Food-Tracker/favicon.ico" type="image/x-icon" />
     <!-- Link to the PWA manifest file -->
     <link rel="manifest" href="/Food-Tracker/manifest.json">
     <!-- Tailwind CSS for styling -->
@@ -14,12 +15,15 @@
     <style>
         /* Import a clean, modern font */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6;
         }
+
         /* Styling for the modal and message box UI */
-        .message-box, .modal {
+        .message-box,
+        .modal {
             position: fixed;
             top: 50%;
             left: 50%;
@@ -32,7 +36,9 @@
             width: 90%;
             max-width: 400px;
         }
-        .message-box-overlay, .modal-overlay {
+
+        .message-box-overlay,
+        .modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
@@ -41,6 +47,7 @@
             background-color: rgba(0, 0, 0, 0.5);
             z-index: 999;
         }
+
         /* Custom primary button with gradient and hover effect */
         .btn-primary {
             background-image: linear-gradient(to right, #6EE7B7, #34D399, #10B981);
@@ -49,28 +56,53 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: transform 0.2s, box-shadow 0.2s;
         }
+
         .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
         }
+
         /* CSS for the circular progress bars */
         .progress-circle {
             transform: rotate(-90deg);
         }
+
         .progress-circle-bg {
             stroke: #e2e8f0;
         }
+
         .progress-circle-fg {
             transition: stroke-dashoffset 0.5s ease-in-out;
         }
+
         /* Calendar cell styling based on nutrition progress */
-        .calendar-cell.achieved-100 { background-color: #10B981; color: white; }
-        .calendar-cell.achieved-90 { background-color: #A3E635; color: black; }
-        .calendar-cell.achieved-70 { background-color: #FACC15; color: black; }
-        .calendar-cell.achieved-50 { background-color: #F87171; color: white; }
-        .calendar-cell.achieved-25 { background-color: #EF4444; color: white; }
+        .calendar-cell.achieved-100 {
+            background-color: #10B981;
+            color: white;
+        }
+
+        .calendar-cell.achieved-90 {
+            background-color: #A3E635;
+            color: black;
+        }
+
+        .calendar-cell.achieved-70 {
+            background-color: #FACC15;
+            color: black;
+        }
+
+        .calendar-cell.achieved-50 {
+            background-color: #F87171;
+            color: white;
+        }
+
+        .calendar-cell.achieved-25 {
+            background-color: #EF4444;
+            color: white;
+        }
     </style>
 </head>
+
 <body class="flex flex-col min-h-screen">
     <!-- Firebase SDK Imports -->
     <script type="module">
@@ -87,7 +119,7 @@
         const registerPage = document.getElementById('register-page');
         const homePage = document.getElementById('home-page');
         const mainContent = document.getElementById('main-content');
-        
+
         // Credentials page elements
         const nutritionixIdInput = document.getElementById('nutritionix-id-input');
         const nutritionixKeyInput = document.getElementById('nutritionix-key-input');
@@ -108,7 +140,7 @@
         const registerPasswordInput = document.getElementById('register-password-input');
         const registerBtn = document.getElementById('register-btn');
         const goToLoginBtn = document.getElementById('go-to-login-btn');
-        
+
         // Home page elements
         const foodQueryInput = document.getElementById('food-query-input');
         const searchBtn = document.getElementById('search-btn');
@@ -133,7 +165,7 @@
         const logoutBtn = document.getElementById('logout-btn');
         const dailyTargetsToggle = document.getElementById('daily-targets-toggle');
         const dailyTargetsContent = document.getElementById('daily-targets-content');
-        
+
         let db, auth, userId;
         let currentFoodItem = null;
         let currentMonth = new Date();
@@ -156,7 +188,7 @@
             messageBox.classList.add('hidden');
             messageBoxOverlay.classList.add('hidden');
         };
-        
+
         const showModal = (content) => {
             modalContent.innerHTML = content;
             modal.classList.remove('hidden');
@@ -172,7 +204,7 @@
         closeMessageBtn.addEventListener('click', hideMessageBox);
         messageBoxOverlay.addEventListener('click', hideMessageBox);
         closeModalBtn.addEventListener('click', hideModal);
-        
+
         // Event listener for the daily targets dropdown
         dailyTargetsToggle.addEventListener('click', () => {
             dailyTargetsContent.classList.toggle('hidden');
@@ -188,7 +220,7 @@
             // Check for credentials in localStorage
             const nutritionixKeys = JSON.parse(localStorage.getItem('nutritionix_keys'));
             const firebaseConfig = JSON.parse(localStorage.getItem('firebase_config'));
-            
+
             if (nutritionixKeys && firebaseConfig) {
                 // Initialize Firebase with user-provided config
                 try {
@@ -227,7 +259,7 @@
         saveCredentialsBtn.addEventListener('click', () => {
             const nutritionixId = nutritionixIdInput.value.trim();
             const nutritionixKey = nutritionixKeyInput.value.trim();
-            
+
             // New logic to create firebase config from individual fields
             const firebaseConfig = {
                 apiKey: fbApiKeyInput.value.trim(),
@@ -242,20 +274,20 @@
                 showMessageBox('Error', 'All fields are required. Please enter your credentials.');
                 return;
             }
-            
+
             try {
                 localStorage.setItem('nutritionix_keys', JSON.stringify({ appId: nutritionixId, apiKey: nutritionixKey }));
                 localStorage.setItem('firebase_config', JSON.stringify(firebaseConfig));
                 showMessageBox('Success', 'Credentials saved! You can now log in.');
-                
+
                 // Re-initialize the app with the new credentials
-                initApp(); 
+                initApp();
 
             } catch (error) {
                 showMessageBox('Error', 'Failed to save credentials. Please check your inputs.');
             }
         });
-        
+
         // --- AUTHENTICATION FLOW LOGIC (UPDATED FOR EMAIL/PASSWORD) ---
 
         // Navigate from Login to Register
@@ -285,12 +317,12 @@
                 showMessageBox('Authentication Error', `Failed to sign in. Error: ${error.message}.`);
             }
         });
-        
+
         // Register new user with email and password
         registerBtn.addEventListener('click', async () => {
             const email = registerEmailInput.value.trim();
             const password = registerPasswordInput.value.trim();
-            
+
             if (!email || !password) {
                 showMessageBox('Error', 'Please fill in all fields (Email, and Password).');
                 return;
@@ -300,12 +332,12 @@
                 // Create the user with email and password
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const uid = userCredential.user.uid;
-                
+
                 // Automatically set the username from the email prefix
                 const userName = email.split('@')[0];
                 const userDocRef = getUserRef(uid);
                 await setDoc(userDocRef, { userName: userName }, { merge: true });
-                
+
                 // onAuthStateChanged listener will handle the transition to the home page
                 showMessageBox('Success', 'Registration complete! Welcome to NutriTrack Fun.');
 
@@ -325,7 +357,7 @@
                 showMessageBox('Logout Error', `Failed to log out. Error: ${error.message}`);
             }
         });
-        
+
         // Save Daily Targets
         dailyTargetsForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -367,7 +399,7 @@
                 showMessageBox('Credentials Missing', 'Please go to the credentials page to enter your API keys.');
                 return;
             }
-            
+
             // Show loading state
             searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-white"></i>';
             searchBtn.disabled = true;
@@ -408,7 +440,7 @@
                 addFoodBtn.classList.add('hidden');
                 return;
             }
-            
+
             currentFoodItem = data.foods[0];
             const food = currentFoodItem;
 
@@ -470,7 +502,7 @@
                 ...currentFoodItem,
                 timestamp: new Date().toISOString(),
             };
-            
+
             try {
                 const dailyEntriesRef = getDailyEntriesRef(userId);
                 const dailyEntryDocRef = doc(dailyEntriesRef, dateStr);
@@ -487,7 +519,7 @@
                 await setDoc(dailyEntryDocRef, {
                     foods: updatedEntries,
                 }, { merge: true });
-                
+
                 showMessageBox('Success', `${currentFoodItem.food_name} added to your log for today!`);
                 foodQueryInput.value = '';
                 resultsContainer.innerHTML = '';
@@ -498,7 +530,7 @@
                 console.error("Error adding food entry:", error);
             }
         });
-        
+
         // Setup Firestore listeners for real-time updates
         const setupRealtimeListeners = () => {
             if (!userId) return;
@@ -557,12 +589,12 @@
                 console.error("Error getting all entries:", error);
             });
         };
-        
+
         // Update the daily progress circles
         const updateDailyProgress = async (data) => {
             const userDoc = await getDoc(getUserRef(userId));
             const targets = userDoc.exists() ? userDoc.data().dailyTargets || {} : {};
-        
+
             const totals = data.foods.reduce((acc, food) => {
                 acc.calories += food.nf_calories || 0;
                 acc.protein += food.nf_protein || 0;
@@ -582,7 +614,7 @@
                 const target = targets[nutrient] || 1;
                 const current = totals[nutrient] || 0;
                 const percentage = Math.min(100, (current / target) * 100);
-                
+
                 let title = '';
                 let unit = '';
                 let colorClass = '';
@@ -632,11 +664,11 @@
         };
 
         const createSingleCircle = (value, unit, label, colorClass, color, maxValue) => {
-            const size = 12; 
-            const circumference = 2 * Math.PI * (size - 2); 
-            const percentage = Math.min(100, (value / maxValue) * 100); 
+            const size = 12;
+            const circumference = 2 * Math.PI * (size - 2);
+            const percentage = Math.min(100, (value / maxValue) * 100);
             const offset = circumference - percentage / 100 * circumference;
-            
+
             return `
                 <div class="flex flex-col items-center">
                     <div class="relative w-12 h-12">
@@ -660,7 +692,7 @@
             const recentDates = sortedDates.slice(0, 5);
 
             dailyEntriesContainer.innerHTML = '';
-            
+
             recentDates.forEach(date => {
                 const entry = allEntries[date];
                 const dateObj = new Date(date + 'T00:00:00');
@@ -724,7 +756,7 @@
             const firstDayOfMonth = new Date(year, month, 1).getDay();
             const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
             const today = new Date().toISOString().slice(0, 10);
-            
+
             const userDoc = await getDoc(getUserRef(userId));
             const targets = userDoc.exists() ? userDoc.data().dailyTargets || {} : {};
             const targetCalories = targets.calories || 1;
@@ -743,7 +775,7 @@
                 if (entry) {
                     totalCalories = entry.foods.reduce((sum, food) => sum + (food.nf_calories || 0), 0);
                     const percentage = (totalCalories / targetCalories) * 100;
-                    
+
                     if (percentage >= 100) progressClass = 'achieved-100';
                     else if (percentage >= 90) progressClass = 'achieved-90';
                     else if (percentage >= 70) progressClass = 'achieved-70';
@@ -761,14 +793,14 @@
                 `;
             }
             calendarContainer.innerHTML = cells;
-            
+
             // Add click listeners to calendar cells
             calendarContainer.querySelectorAll('.calendar-cell').forEach(cell => {
                 cell.addEventListener('click', () => {
                     const date = cell.dataset.date;
                     const entry = allEntries[date];
                     let modalHtml = `<h3 class="text-xl font-bold mb-4">Entries for ${date}</h3>`;
-                    
+
                     if (entry && entry.foods.length > 0) {
                         modalHtml += `<div class="space-y-4">`;
                         entry.foods.forEach(food => {
@@ -785,7 +817,7 @@
                     } else {
                         modalHtml += `<p class="text-gray-600">No entries for this day.</p>`;
                     }
-                    
+
                     showModal(modalHtml);
                 });
             });
@@ -803,7 +835,7 @@
 
         // Start the app logic
         initApp();
-        
+
     </script>
 
     <!-- App Views -->
@@ -819,18 +851,26 @@
                 <!-- Nutritionix API Keys Section -->
                 <div>
                     <h2 class="text-xl font-semibold text-gray-700 mb-3">Nutritionix API Keys</h2>
-                    <input type="text" id="nutritionix-id-input" placeholder="Nutritionix App ID" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 mb-2">
-                    <input type="text" id="nutritionix-key-input" placeholder="Nutritionix API Key" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                    <input type="text" id="nutritionix-id-input" placeholder="Nutritionix App ID"
+                        class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 mb-2">
+                    <input type="text" id="nutritionix-key-input" placeholder="Nutritionix API Key"
+                        class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
                 </div>
                 <!-- Firebase Config Section -->
                 <div>
                     <h2 class="text-xl font-semibold text-gray-700 mb-3">Firebase Config</h2>
-                    <input type="text" id="fb-api-key-input" placeholder="apiKey" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 mb-2">
-                    <input type="text" id="fb-auth-domain-input" placeholder="authDomain" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 mb-2">
-                    <input type="text" id="fb-project-id-input" placeholder="projectId" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 mb-2">
-                    <input type="text" id="fb-storage-bucket-input" placeholder="storageBucket" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 mb-2">
-                    <input type="text" id="fb-messaging-sender-id-input" placeholder="messagingSenderId" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 mb-2">
-                    <input type="text" id="fb-app-id-input" placeholder="appId" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                    <input type="text" id="fb-api-key-input" placeholder="apiKey"
+                        class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 mb-2">
+                    <input type="text" id="fb-auth-domain-input" placeholder="authDomain"
+                        class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 mb-2">
+                    <input type="text" id="fb-project-id-input" placeholder="projectId"
+                        class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 mb-2">
+                    <input type="text" id="fb-storage-bucket-input" placeholder="storageBucket"
+                        class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 mb-2">
+                    <input type="text" id="fb-messaging-sender-id-input" placeholder="messagingSenderId"
+                        class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 mb-2">
+                    <input type="text" id="fb-app-id-input" placeholder="appId"
+                        class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
                 </div>
                 <button id="save-credentials-btn" class="w-full mt-4 py-3 rounded-xl font-bold btn-primary">
                     Save Credentials
@@ -845,8 +885,10 @@
                 <p class="text-gray-500">Sign in to continue.</p>
             </div>
             <div class="space-y-4">
-                <input type="email" id="login-email-input" placeholder="Email Address" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
-                <input type="password" id="login-password-input" placeholder="Password" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                <input type="email" id="login-email-input" placeholder="Email Address"
+                    class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                <input type="password" id="login-password-input" placeholder="Password"
+                    class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
                 <button id="login-btn" class="w-full py-3 rounded-xl font-bold btn-primary">
                     Sign In
                 </button>
@@ -855,7 +897,7 @@
                 </button>
             </div>
         </div>
-        
+
         <!-- Register Page (Updated for Email/Password) -->
         <div id="register-page" class="w-full max-w-sm bg-white rounded-2xl shadow-xl p-8 hidden">
             <div class="text-center mb-6">
@@ -863,8 +905,10 @@
                 <p class="text-gray-500">Enter your details to get started.</p>
             </div>
             <div class="space-y-4">
-                <input type="email" id="register-email-input" placeholder="Email Address" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
-                <input type="password" id="register-password-input" placeholder="Password" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                <input type="email" id="register-email-input" placeholder="Email Address"
+                    class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                <input type="password" id="register-password-input" placeholder="Password"
+                    class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
                 <button id="register-btn" class="w-full py-3 rounded-xl font-bold btn-primary">
                     Register and Sign In
                 </button>
@@ -906,8 +950,10 @@
                     <div class="bg-white rounded-2xl shadow-xl p-4 md:p-6">
                         <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">Log a Meal</h2>
                         <div class="flex items-center space-x-2 mb-4">
-                            <input type="text" id="food-query-input" placeholder="e.g. 1 bowl of oatmeal, 2 eggs" class="flex-grow px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
-                            <button id="search-btn" class="w-12 h-12 flex items-center justify-center rounded-xl btn-primary">
+                            <input type="text" id="food-query-input" placeholder="e.g. 1 bowl of oatmeal, 2 eggs"
+                                class="flex-grow px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                            <button id="search-btn"
+                                class="w-12 h-12 flex items-center justify-center rounded-xl btn-primary">
                                 <i class="fas fa-search text-white"></i>
                             </button>
                         </div>
@@ -922,13 +968,15 @@
 
                 <!-- Column 2: Calendar & Targets -->
                 <div class="flex flex-col space-y-6">
-                    
+
                     <!-- Monthly Calendar -->
                     <div class="bg-white rounded-2xl shadow-xl p-4 md:p-6">
                         <div class="flex justify-between items-center mb-4">
-                            <button id="prev-month-btn" class="text-gray-500 hover:text-green-500 transition-colors"><i class="fas fa-chevron-left"></i></button>
+                            <button id="prev-month-btn" class="text-gray-500 hover:text-green-500 transition-colors"><i
+                                    class="fas fa-chevron-left"></i></button>
                             <h3 id="current-month-display" class="text-lg font-semibold text-gray-800"></h3>
-                            <button id="next-month-btn" class="text-gray-500 hover:text-green-500 transition-colors"><i class="fas fa-chevron-right"></i></button>
+                            <button id="next-month-btn" class="text-gray-500 hover:text-green-500 transition-colors"><i
+                                    class="fas fa-chevron-right"></i></button>
                         </div>
                         <div class="grid grid-cols-7 text-center font-medium text-gray-500 mb-2 text-xs md:text-sm">
                             <span>Sun</span>
@@ -943,7 +991,7 @@
                             <!-- Calendar cells will be injected here -->
                         </div>
                     </div>
-                    
+
                     <!-- Recent Entries -->
                     <div class="bg-white rounded-2xl shadow-xl p-4 md:p-6">
                         <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">Recent Entries</h2>
@@ -956,45 +1004,64 @@
                     <div class="bg-white rounded-2xl shadow-xl p-4 md:p-6">
                         <div id="daily-targets-toggle" class="flex justify-between items-center cursor-pointer">
                             <h2 class="text-xl md:text-2xl font-bold text-gray-800">Daily Targets</h2>
-                            <i class="fas fa-chevron-down text-gray-400 transform transition-transform duration-200"></i>
+                            <i
+                                class="fas fa-chevron-down text-gray-400 transform transition-transform duration-200"></i>
                         </div>
                         <div id="daily-targets-content" class="hidden mt-4">
                             <form id="daily-targets-form" class="space-y-4">
                                 <div>
-                                    <label for="target-calories" class="block text-sm font-medium text-gray-700">Calories (kcal)</label>
-                                    <input type="number" id="target-calories" name="target-calories" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                                    <label for="target-calories"
+                                        class="block text-sm font-medium text-gray-700">Calories (kcal)</label>
+                                    <input type="number" id="target-calories" name="target-calories"
+                                        class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
                                 </div>
                                 <div>
-                                    <label for="target-protein" class="block text-sm font-medium text-gray-700">Protein (g)</label>
-                                    <input type="number" id="target-protein" name="target-protein" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                                    <label for="target-protein" class="block text-sm font-medium text-gray-700">Protein
+                                        (g)</label>
+                                    <input type="number" id="target-protein" name="target-protein"
+                                        class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
                                 </div>
                                 <div>
-                                    <label for="target-carbs" class="block text-sm font-medium text-gray-700">Carbohydrates (g)</label>
-                                    <input type="number" id="target-carbs" name="target-carbs" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                                    <label for="target-carbs"
+                                        class="block text-sm font-medium text-gray-700">Carbohydrates (g)</label>
+                                    <input type="number" id="target-carbs" name="target-carbs"
+                                        class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
                                 </div>
                                 <div>
-                                    <label for="target-sugar" class="block text-sm font-medium text-gray-700">Sugar (g)</label>
-                                    <input type="number" id="target-sugar" name="target-sugar" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                                    <label for="target-sugar" class="block text-sm font-medium text-gray-700">Sugar
+                                        (g)</label>
+                                    <input type="number" id="target-sugar" name="target-sugar"
+                                        class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
                                 </div>
                                 <div>
-                                    <label for="target-fiber" class="block text-sm font-medium text-gray-700">Fiber (g)</label>
-                                    <input type="number" id="target-fiber" name="target-fiber" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                                    <label for="target-fiber" class="block text-sm font-medium text-gray-700">Fiber
+                                        (g)</label>
+                                    <input type="number" id="target-fiber" name="target-fiber"
+                                        class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
                                 </div>
                                 <div>
-                                    <label for="target-satFat" class="block text-sm font-medium text-gray-700">Saturated Fat (g)</label>
-                                    <input type="number" id="target-satFat" name="target-satFat" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                                    <label for="target-satFat" class="block text-sm font-medium text-gray-700">Saturated
+                                        Fat (g)</label>
+                                    <input type="number" id="target-satFat" name="target-satFat"
+                                        class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
                                 </div>
                                 <div>
-                                    <label for="target-sodium" class="block text-sm font-medium text-gray-700">Sodium (mg)</label>
-                                    <input type="number" id="target-sodium" name="target-sodium" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                                    <label for="target-sodium" class="block text-sm font-medium text-gray-700">Sodium
+                                        (mg)</label>
+                                    <input type="number" id="target-sodium" name="target-sodium"
+                                        class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
                                 </div>
                                 <div>
-                                    <label for="target-potassium" class="block text-sm font-medium text-gray-700">Potassium (mg)</label>
-                                    <input type="number" id="target-potassium" name="target-potassium" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                                    <label for="target-potassium"
+                                        class="block text-sm font-medium text-gray-700">Potassium (mg)</label>
+                                    <input type="number" id="target-potassium" name="target-potassium"
+                                        class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
                                 </div>
                                 <div>
-                                    <label for="target-fat" class="block text-sm font-medium text-gray-700">Fat (g)</label>
-                                    <input type="number" id="target-fat" name="target-fat" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                                    <label for="target-fat" class="block text-sm font-medium text-gray-700">Fat
+                                        (g)</label>
+                                    <input type="number" id="target-fat" name="target-fat"
+                                        class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
                                 </div>
                                 <button type="submit" class="w-full py-3 rounded-xl font-bold btn-primary">
                                     Save Targets
@@ -1002,7 +1069,7 @@
                             </form>
                         </div>
                     </div>
-                    
+
                 </div>
             </div>
         </div>
@@ -1020,20 +1087,22 @@
     <div id="modal-overlay" class="modal-overlay hidden"></div>
     <div id="modal" class="modal hidden">
         <div id="modal-content"></div>
-        <button id="close-modal-btn" class="w-full py-2 mt-4 rounded-xl bg-green-500 text-white font-bold">Close</button>
+        <button id="close-modal-btn"
+            class="w-full py-2 mt-4 rounded-xl bg-green-500 text-white font-bold">Close</button>
     </div>
-    
+
     <!-- Script to register the service worker -->
     <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/Food-Tracker/service-worker.js').then(registration => {
-            console.log('ServiceWorker registration successful with scope: ', registration.scope);
-          }, err => {
-            console.log('ServiceWorker registration failed: ', err);
-          });
-        });
-      }
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/Food-Tracker/service-worker.js').then(registration => {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }, err => {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
     </script>
 </body>
+
 </html>

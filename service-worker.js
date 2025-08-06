@@ -3,12 +3,22 @@ const CACHE_NAME = 'nutritrack-cache-v1';
 
 // List all the assets you want to cache
 const urlsToCache = [
-  '/Food-Tracker/',
+  '/Food-Tracker/', // The root of your project page
   '/Food-Tracker/index.html',
   '/Food-Tracker/manifest.json',
-  // You would also list other assets like CSS, JS, and image files here
-  // For this example, we will assume all assets are in index.html for simplicity.
-  // In a real-world app, you would cache your specific files.
+  '/Food-Tracker/service-worker.js',
+  // Add paths to other assets like CSS, JS, and image files if they are not inline or from CDN
+  // Example for icons (ensure these paths are correct relative to your repo root):
+  '/Food-Tracker/images/icon-72x72.png',
+  '/Food-Tracker/images/icon-96x96.png',
+  '/Food-Tracker/images/icon-128x128.png',
+  '/Food-Tracker/images/icon-144x144.png',
+  '/Food-Tracker/images/icon-192x192.png',
+  '/Food-Tracker/images/icon-512x512.png',
+  // Add any other external CSS/JS files you might be using that aren't CDN
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+  'https://cdn.tailwindcss.com',
+  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap'
 ];
 
 // The 'install' event is fired when the service worker is installed
@@ -21,6 +31,9 @@ self.addEventListener('install', event => {
         console.log('Opened cache');
         // Add all URLs to the cache
         return cache.addAll(urlsToCache);
+      })
+      .catch(error => {
+        console.error('Failed to cache during install:', error);
       })
   );
 });
@@ -37,6 +50,10 @@ self.addEventListener('fetch', event => {
         }
         // Otherwise, fetch the resource from the network
         return fetch(event.request);
+      })
+      .catch(error => {
+        console.error('Fetch failed:', error);
+        // You could return a fallback page here for offline users
       })
   );
 });
