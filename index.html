@@ -950,12 +950,12 @@
                     <div class="bg-white rounded-2xl shadow-xl p-4 md:p-6">
                         <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">Log a Meal</h2>
                         <div class="flex items-center space-x-2 mb-4">
-                            <input type="text" id="food-query-input" placeholder="e.g. 1 bowl of oatmeal, 2 eggs"
-                                class="flex-grow px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
-                            <button id="search-btn"
-                                class="w-12 h-12 flex items-center justify-center rounded-xl btn-primary">
-                                <i class="fas fa-search text-white"></i>
-                            </button>
+                          <input type="text" id="food-query-input" placeholder="e.g. 1 bowl of oatmeal, 2 eggs"
+                            class="flex-grow px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400">
+                          <button id="search-btn"
+                            class="w-12 h-12 flex items-center justify-center rounded-xl btn-primary">
+                            <i class="fas fa-search text-white"></i>
+                          </button>
                         </div>
                         <div id="results-container" class="mb-4">
                             <!-- Search results will be displayed here -->
@@ -1091,6 +1091,16 @@
             class="w-full py-2 mt-4 rounded-xl bg-green-500 text-white font-bold">Close</button>
     </div>
 
+
+    <script>
+      document.getElementById('food-query-input').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault(); // prevent form submission if inside a form
+          document.getElementById('search-btn').click(); // trigger the button click
+        }
+      });
+    </script>
+
     <!-- Script to register the service worker -->
     <script>
         if ('serviceWorker' in navigator) {
@@ -1107,4 +1117,5 @@
 
 
 </html>
+
 
