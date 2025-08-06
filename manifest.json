@@ -2,38 +2,38 @@
   "name": "NutriTrack Fun",
   "short_name": "NutriTrack",
   "description": "A fun and simple app to track your daily nutrition.",
-  "start_url": "./index.html",
+  "start_url": "/Food-Tracker/index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#10B981",
   "icons": [
     {
-      "src": "/images/icon-72x72.png",
+      "src": "/Food-Tracker/images/icon-72x72.png",
       "sizes": "72x72",
       "type": "image/png"
     },
     {
-      "src": "/images/icon-96x96.png",
+      "src": "/Food-Tracker/images/icon-96x96.png",
       "sizes": "96x96",
       "type": "image/png"
     },
     {
-      "src": "/images/icon-128x128.png",
+      "src": "/Food-Tracker/images/icon-128x128.png",
       "sizes": "128x128",
       "type": "image/png"
     },
     {
-      "src": "/images/icon-144x144.png",
+      "src": "/Food-Tracker/images/icon-144x144.png",
       "sizes": "144x144",
       "type": "image/png"
     },
     {
-      "src": "/images/icon-192x192.png",
+      "src": "/Food-Tracker/images/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/images/icon-512x512.png",
+      "src": "/Food-Tracker/images/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
