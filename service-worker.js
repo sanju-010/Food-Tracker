@@ -3,9 +3,9 @@ const CACHE_NAME = 'nutritrack-cache-v1';
 
 // List all the assets you want to cache
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json',
+  '/Food-Tracker/',
+  '/Food-Tracker/index.html',
+  '/Food-Tracker/manifest.json',
   // You would also list other assets like CSS, JS, and image files here
   // For this example, we will assume all assets are in index.html for simplicity.
   // In a real-world app, you would cache your specific files.

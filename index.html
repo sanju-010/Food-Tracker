@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NutriTrack Fun</title>
     <!-- Link to the PWA manifest file -->
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="/Food-Tracker/manifest.json">
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome for icons -->
@@ -1026,7 +1026,7 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/service-worker.js').then(registration => {
+          navigator.serviceWorker.register('/Food-Tracker/service-worker.js').then(registration => {
             console.log('ServiceWorker registration successful with scope: ', registration.scope);
           }, err => {
             console.log('ServiceWorker registration failed: ', err);
