@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NutriTrack Fun</title>
+    <title>NutriTrack</title>
     <link rel="icon" href="/Food-Tracker/favicon.ico" type="image/x-icon" />
     <!-- Link to the PWA manifest file -->
     <link rel="manifest" href="/Food-Tracker/manifest.json">
@@ -339,7 +339,7 @@
                 await setDoc(userDocRef, { userName: userName }, { merge: true });
 
                 // onAuthStateChanged listener will handle the transition to the home page
-                showMessageBox('Success', 'Registration complete! Welcome to NutriTrack Fun.');
+                showMessageBox('Success', 'Registration complete! Welcome to NutriTrack.');
 
             } catch (error) {
                 showMessageBox('Error', `Failed to register. Error: ${error.message}`);
@@ -921,7 +921,7 @@
         <!-- Main Home Page (hidden initially) -->
         <div id="home-page" class="w-full flex-grow hidden flex flex-col items-center p-4 md:p-8">
             <header class="w-full max-w-4xl flex flex-col md:flex-row justify-between mb-6 space-y-4 md:space-y-0">
-                <h1 class="text-3xl font-bold text-gray-800">NutriTrack Fun</h1>
+                <h1 class="text-3xl font-bold text-gray-800">NutriTrack</h1>
                 <div class="flex justify-end space-x-6 !-mt-0">
                     <div class="flex items-center text-sm p-2">
                         <i class="fas fa-user-circle text-gray-400 mr-2"></i>
@@ -1107,3 +1107,4 @@
 
 
 </html>
+
